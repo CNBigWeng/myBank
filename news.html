@@ -1,0 +1,997 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校园新闻站 - 学校资讯</title>
+    <style>
+        :root {
+            --primary: #2d5a27;
+            --primary-dark: #1b3d18;
+            --primary-light: #e8f5e9;
+            --bg: #f5f7f5;
+            --card-bg: #ffffff;
+            --text: #1e2a1e;
+            --text-secondary: #4a5a4a;
+            --text-muted: #8a9a8a;
+            --border: #dde5dd;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+            --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.1);
+            --radius: 12px;
+            --radius-sm: 8px;
+            --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            --tag-bg: #f0f2f0;
+            --tag-text: #4a5a4a;
+        }
+
+        [data-theme="dark"] {
+            --primary: #7cb57a;
+            --primary-dark: #a5d6a7;
+            --primary-light: #1e2a1e;
+            --bg: #1a1f1a;
+            --card-bg: #252b25;
+            --text: #e8f0e8;
+            --text-secondary: #b0c0b0;
+            --text-muted: #7a8a7a;
+            --border: #3a423a;
+            --shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            --shadow-hover: 0 4px 12px rgba(0, 0, 0, 0.4);
+            --tag-bg: #3a423a;
+            --tag-text: #e8f0e8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Helvetica Neue', Arial, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            line-height: 1.6;
+            transition: background var(--transition), color var(--transition);
+            min-height: 100vh;
+        }
+
+        /* 顶部导航 */
+        .navbar {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--card-bg);
+            border-bottom: 1px solid var(--border);
+            padding: 0 24px;
+            height: 64px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            box-shadow: var(--shadow);
+            transition: background var(--transition), border-color var(--transition);
+        }
+
+        .navbar-left {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 22px;
+            font-weight: 700;
+            color: var(--primary);
+            letter-spacing: -0.5px;
+            cursor: pointer;
+            user-select: none;
+            transition: color var(--transition);
+        }
+
+        .logo-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            font-size: 18px;
+            font-weight: 800;
+            flex-shrink: 0;
+        }
+
+        .search-bar {
+            flex: 1;
+            max-width: 520px;
+            position: relative;
+            margin: 0 auto;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 10px 42px 10px 44px;
+            border: 2px solid var(--border);
+            border-radius: 24px;
+            font-size: 14px;
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+            transition: all var(--transition);
+            font-family: inherit;
+        }
+        .search-bar input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(45, 90, 39, 0.15);
+            background: var(--card-bg);
+        }
+        .search-bar input::placeholder {
+            color: var(--text-muted);
+        }
+        .search-icon {
+            position: absolute;
+            left: 16px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            pointer-events: none;
+            font-size: 16px;
+        }
+        .search-clear {
+            position: absolute;
+            right: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 18px;
+            display: none;
+            padding: 4px;
+            border-radius: 50%;
+            transition: all 0.2s;
+            line-height: 1;
+        }
+        .search-clear:hover {
+            color: var(--text);
+            background: var(--tag-bg);
+        }
+        .search-clear.visible {
+            display: block;
+        }
+
+        .navbar-right {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .icon-btn {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 20px;
+            transition: all 0.2s;
+            position: relative;
+        }
+        .icon-btn:hover {
+            background: var(--tag-bg);
+            color: var(--text);
+        }
+
+        /* 主内容区 */
+        .main-content {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 24px 40px;
+        }
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+        .section-title {
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -0.3px;
+            color: var(--text);
+        }
+        .news-count {
+            font-size: 13px;
+            color: var(--text-muted);
+            font-weight: 400;
+        }
+
+        /* 新闻网格：单列居中 */
+        .news-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 16px;
+            max-width: 800px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        /* 新闻卡片 */
+        .news-card {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            overflow: hidden;
+            cursor: pointer;
+            box-shadow: var(--shadow);
+            transition: all var(--transition);
+            border: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            animation: fadeInUp 0.4s ease forwards;
+            opacity: 0;
+            width: 100%;
+        }
+        .news-card:hover {
+            box-shadow: var(--shadow-hover);
+            transform: translateY(-3px);
+            border-color: var(--primary);
+        }
+        .news-card:active {
+            transform: scale(0.98);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .news-card-image {
+            width: 100%;
+            height: 200px;
+            background-size: cover;
+            background-position: center;
+            background-color: var(--tag-bg);
+            position: relative;
+            flex-shrink: 0;
+            transition: transform 0.4s;
+        }
+        .news-card:hover .news-card-image {
+            transform: scale(1.02);
+        }
+
+        .news-card-category {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            padding: 4px 12px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #fff;
+            background: var(--primary);
+            z-index: 2;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .news-card-body {
+            padding: 16px 18px 18px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .news-card-title {
+            font-size: 17px;
+            font-weight: 700;
+            line-height: 1.45;
+            color: var(--text);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            letter-spacing: -0.2px;
+            transition: color 0.2s;
+        }
+        .news-card:hover .news-card-title {
+            color: var(--primary);
+        }
+
+        .news-card-summary {
+            font-size: 13px;
+            color: var(--text-secondary);
+            line-height: 1.55;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            flex: 1;
+        }
+
+        .news-card-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .news-card-meta .source {
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+        .meta-dot {
+            width: 3px;
+            height: 3px;
+            border-radius: 50%;
+            background: var(--text-muted);
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: var(--text-muted);
+            grid-column: 1 / -1;
+        }
+        .empty-state-icon {
+            font-size: 56px;
+            margin-bottom: 16px;
+            opacity: 0.6;
+        }
+        .empty-state-text {
+            font-size: 16px;
+            font-weight: 500;
+            color: var(--text-secondary);
+        }
+
+        /* 弹窗 */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            animation: fadeIn 0.25s ease;
+            backdrop-filter: blur(4px);
+            -webkit-backdrop-filter: blur(4px);
+        }
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+
+        .modal {
+            background: var(--card-bg);
+            border-radius: var(--radius);
+            max-width: 720px;
+            width: 100%;
+            max-height: 85vh;
+            overflow-y: auto;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            animation: slideUp 0.35s ease;
+            position: relative;
+        }
+        @keyframes slideUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px) scale(0.96);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .modal-close {
+            position: sticky;
+            top: 12px;
+            right: 12px;
+            float: right;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: none;
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            transition: all 0.2s;
+            z-index: 10;
+            margin: 12px 12px 0 0;
+        }
+        .modal-close:hover {
+            background: var(--tag-bg);
+            color: var(--text);
+            transform: rotate(90deg);
+        }
+
+        .modal-image {
+            width: 100%;
+            height: 280px;
+            background-size: cover;
+            background-position: center;
+            background-color: var(--tag-bg);
+            margin-top: -48px;
+        }
+
+        .modal-content {
+            padding: 24px 28px 32px;
+        }
+        .modal-category {
+            display: inline-block;
+            padding: 4px 14px;
+            border-radius: 16px;
+            font-size: 11px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #fff;
+            background: var(--primary);
+            margin-bottom: 12px;
+        }
+        .modal-title {
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1.35;
+            margin-bottom: 12px;
+            letter-spacing: -0.4px;
+            color: var(--text);
+        }
+        .modal-meta {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-bottom: 18px;
+            padding-bottom: 18px;
+            border-bottom: 1px solid var(--border);
+        }
+        .modal-body {
+            font-size: 15px;
+            line-height: 1.8;
+            color: var(--text-secondary);
+            letter-spacing: 0.2px;
+        }
+        .modal-body p {
+            margin-bottom: 14px;
+        }
+
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 0 12px;
+                height: 56px;
+                gap: 8px;
+            }
+            .logo {
+                font-size: 17px;
+            }
+            .logo-icon {
+                width: 30px;
+                height: 30px;
+                font-size: 15px;
+            }
+            .search-bar input {
+                padding: 8px 36px 8px 36px;
+                font-size: 13px;
+            }
+            .search-icon {
+                left: 12px;
+                font-size: 14px;
+            }
+            .main-content {
+                padding: 14px 12px 30px;
+            }
+            .news-card-image {
+                height: 170px;
+            }
+            .news-card-title {
+                font-size: 15px;
+            }
+            .modal-content {
+                padding: 18px 18px 24px;
+            }
+            .modal-title {
+                font-size: 19px;
+            }
+            .modal-image {
+                height: 200px;
+            }
+            .section-title {
+                font-size: 17px;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .navbar {
+                padding: 0 8px;
+            }
+            .navbar-right .icon-btn {
+                width: 34px;
+                height: 34px;
+                font-size: 16px;
+            }
+            .main-content {
+                padding: 10px 8px 24px;
+            }
+            .news-grid {
+                gap: 10px;
+            }
+        }
+
+        /* 回到顶部 */
+        .back-to-top {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: #fff;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 4px 16px rgba(45, 90, 39, 0.4);
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.3s;
+            z-index: 50;
+        }
+        .back-to-top.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .back-to-top:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(45, 90, 39, 0.5);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 顶部导航栏 -->
+    <header class="navbar">
+        <div class="navbar-left">
+            <div class="logo" onclick="resetToHome()">
+                <div class="logo-icon">🏫</div>
+                <span>校园新闻站</span>
+            </div>
+        </div>
+        <div class="search-bar">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="searchInput" placeholder="搜索校园新闻标题、内容..." autocomplete="off">
+            <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+        </div>
+        <div class="navbar-right">
+            <button class="icon-btn" onclick="toggleTheme()" title="切换主题" id="themeToggle">🌙</button>
+            <button class="icon-btn" onclick="refreshNews()" title="刷新">🔄</button>
+        </div>
+    </header>
+
+    <!-- 主内容区（无分类导航） -->
+    <main class="main-content">
+        <div class="section-header">
+            <h2 class="section-title" id="sectionTitle">📰 最新校园新闻</h2>
+            <span class="news-count" id="newsCount"></span>
+        </div>
+        <div class="news-grid" id="newsGrid">
+            <!-- 动态渲染 -->
+        </div>
+    </main>
+
+    <!-- 回到顶部 -->
+    <button class="back-to-top" id="backToTop" onclick="scrollToTop()" title="回到顶部">↑</button>
+
+    <!-- 新闻详情弹窗 -->
+    <div class="modal-overlay" id="modalOverlay" style="display:none;" onclick="closeModalOutside(event)">
+        <div class="modal" id="modal">
+            <button class="modal-close" onclick="closeModal()">✕</button>
+            <div class="modal-image" id="modalImage"></div>
+            <div class="modal-content">
+                <span class="modal-category" id="modalCategory"></span>
+                <h2 class="modal-title" id="modalTitle"></h2>
+                <div class="modal-meta" id="modalMeta"></div>
+                <div class="modal-body" id="modalBody"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 校园新闻数据 ==========
+        const newsData = [{
+            id: 1,
+            title: '我校在2025年全国大学生机器人大赛中荣获特等奖',
+            summary: '由机械工程学院与信息工程学院联合组建的代表队在决赛中脱颖而出，凭借创新设计与稳定发挥斩获最高荣誉。',
+            content: '近日，2025年全国大学生机器人大赛总决赛在南京落下帷幕。我校"启航"机器人代表队凭借其自主设计的全地形适应机器人和精准的操控表现，从全国128支队伍中脱颖而出，荣获特等奖。\n\n本次获奖项目融合了机械设计、自动控制、人工智能等多个学科的前沿技术，充分展现了我校学生在跨学科创新实践方面的卓越能力。\n\n指导教师团队表示，此次成绩的取得离不开学校"新工科"人才培养模式的支撑，未来将继续鼓励学生参与高水平学科竞赛，培养更多创新型工程人才。',
+            category: '校园新闻',
+            source: '机械工程学院',
+            time: '2025-01-15 09:20',
+            image: 'https://picsum.photos/seed/campus-robot/600/400',
+            views: 2360
+        }, {
+            id: 2,
+            title: '关于2025年寒假放假安排及春季学期开学时间的通知',
+            summary: '根据校历安排，2025年寒假自1月20日开始，2月24日正式上课，请全体师生合理安排假期。',
+            content: '各单位、各部门：\n\n根据学校校历及工作实际，现将2025年寒假放假安排通知如下：\n\n一、学生放假时间：2025年1月20日（星期一）至2月23日（星期日），2月24日（星期一）正式上课。\n二、教职工放假时间：2025年1月22日（星期三）至2月21日（星期五），2月22日（星期六）开始上班。\n\n请各学院、各部门在放假前做好安全检查和值班安排，确保校园安全稳定。祝全体师生寒假愉快！',
+            category: '通知公告',
+            source: '校长办公室',
+            time: '2025-01-14 15:00',
+            image: 'https://picsum.photos/seed/campus-notice/600/400',
+            views: 12480
+        }, {
+            id: 3,
+            title: '著名经济学家林毅夫教授做客我校"名家讲坛"',
+            summary: '林毅夫教授以"新结构经济学与高质量发展"为题，为我校师生带来一场精彩的学术报告。',
+            content: '1月14日下午，著名经济学家、北京大学新结构经济学研究院院长林毅夫教授应邀做客我校"名家讲坛"，在学术报告厅为500余名师生作了题为"新结构经济学与高质量发展"的学术报告。\n\n林毅夫教授从新结构经济学的理论框架出发，结合中国改革开放以来的发展实践，深入分析了要素禀赋结构、比较优势与产业升级之间的内在逻辑，并对当前中国经济面临的挑战和机遇进行了系统阐述。\n\n在互动环节，林教授耐心回答了同学们关于产业结构转型、区域协调发展等问题。讲座结束后，校长向林毅夫教授颁发了客座教授聘书。',
+            category: '学术动态',
+            source: '经济管理学院',
+            time: '2025-01-14 16:40',
+            image: 'https://picsum.photos/seed/campus-lecture/600/400',
+            views: 3520
+        }, {
+            id: 4,
+            title: '第十七届校园文化艺术节闭幕式暨颁奖晚会隆重举行',
+            summary: '为期一个月的艺术节圆满落幕，各学院选送的优秀节目在晚会上精彩呈现，现场气氛热烈。',
+            content: '1月13日晚，我校第十七届校园文化艺术节闭幕式暨颁奖晚会在体育馆隆重举行。校领导、各学院师生代表及校友嘉宾共计2000余人齐聚一堂，共同见证艺术节的圆满收官。\n\n本届艺术节以"青春·梦想·传承"为主题，先后举办了歌手大赛、舞蹈大赛、话剧展演、书画摄影展等十余项活动，吸引了超过3000名学生参与。\n\n闭幕式晚会上，各学院选送的优秀节目轮番上演，既有传统民乐合奏，也有现代街舞表演，充分展现了我校学子多才多艺的青春风采。晚会现场还颁发了艺术节各项目的金银铜奖和优秀组织奖。',
+            category: '学生活动',
+            source: '校团委',
+            time: '2025-01-13 21:30',
+            image: 'https://picsum.photos/seed/campus-art/600/400',
+            views: 5680
+        }, {
+            id: 5,
+            title: '教务处关于2024-2025学年第二学期选课安排的通知',
+            summary: '下学期选课工作将于1月16日开始，分三轮进行，请同学们仔细阅读选课指南并按时操作。',
+            content: '各学院、各位同学：\n\n2024-2025学年第二学期选课工作即将开始，现将有关事项通知如下：\n\n一、选课时间：\n第一轮（预选）：1月16日9:00 - 1月19日17:00\n第二轮（正选）：1月21日9:00 - 1月24日17:00\n第三轮（补退选）：2月24日9:00 - 2月28日17:00\n\n二、选课方式：登录教务系统进行网上选课。\n三、注意事项：请同学们在选课前认真阅读本专业培养方案，合理规划课程。如有疑问可咨询各学院教学办公室。\n\n特此通知。',
+            category: '教务信息',
+            source: '教务处',
+            time: '2025-01-13 14:30',
+            image: 'https://picsum.photos/seed/campus-course/600/400',
+            views: 9310
+        }, {
+            id: 6,
+            title: '我校2025届毕业生秋季双选会提供就业岗位1.2万个',
+            summary: '来自全国各地的350余家用人单位参加双选会，涵盖信息技术、金融、制造、教育等多个行业。',
+            content: '为促进毕业生高质量充分就业，1月12日，我校2025届毕业生秋季双选会在体育馆和大学生活动中心同时举行。\n\n本次双选会共邀请到350余家用人单位参会，提供就业岗位1.2万余个，涵盖信息技术、金融、制造、教育、医疗等多个行业领域。参会企业中既有大型央企国企，也有知名民营企业和创新型中小企业。\n\n据统计，现场共收到简历8000余份，初步达成就业意向1500余人。学校就业指导中心还在现场设置了简历诊断、政策咨询等服务台，为毕业生提供全方位就业指导。',
+            category: '招生就业',
+            source: '就业指导中心',
+            time: '2025-01-12 18:00',
+            image: 'https://picsum.photos/seed/campus-job/600/400',
+            views: 4210
+        }, {
+            id: 7,
+            title: '化学与材料学院团队在新型电池材料研究领域取得重要进展',
+            summary: '该团队开发出一种高性能固态电解质材料，可显著提升锂电池的能量密度和安全性，成果发表于《自然·材料》。',
+            content: '近日，我校化学与材料学院王教授团队在新型固态电池材料研究方面取得突破性进展。他们成功开发出一种具有高离子电导率和优异机械性能的复合固态电解质材料。\n\n实验表明，基于该材料的固态锂电池在室温下表现出优异的循环稳定性和高能量密度，同时有效解决了传统液态电池易泄漏、易燃爆的安全隐患。\n\n相关研究成果以"Advanced composite solid electrolyte for high-energy-density lithium batteries"为题，发表在国际顶级学术期刊《自然·材料》上。该工作得到了国家自然科学基金重点项目和学校"双一流"建设经费的支持。',
+            category: '科研成果',
+            source: '化学与材料学院',
+            time: '2025-01-12 10:15',
+            image: 'https://picsum.photos/seed/campus-research/600/400',
+            views: 2890
+        }, {
+            id: 8,
+            title: '外国语学院举办"一带一路"沿线国家文化节活动',
+            summary: '通过美食、服饰、音乐等多种形式，展示沿线国家的风土人情，促进跨文化交流与理解。',
+            content: '1月11日，外国语学院在校园广场举办了以"多元·交流·共享"为主题的"一带一路"沿线国家文化节活动。\n\n活动现场设置了十余个展位，来自俄罗斯、哈萨克斯坦、泰国、埃及等国家的留学生和本国学生一起，通过传统服饰展示、特色美食品尝、民族音乐表演等形式，向广大师生展示了各自国家的独特文化魅力。\n\n活动吸引了上千名师生参与，大家纷纷表示这样的活动既有趣又有意义，增进了对不同国家文化的了解和尊重。外国语学院负责人表示，今后将继续举办类似活动，推动校园国际化氛围建设。',
+            category: '院系风采',
+            source: '外国语学院',
+            time: '2025-01-11 15:30',
+            image: 'https://picsum.photos/seed/campus-culture/600/400',
+            views: 1640
+        }, {
+            id: 9,
+            title: '我校与高新区管委会签署战略合作协议 共建产业创新研究院',
+            summary: '双方将在人才培养、技术攻关、成果转化等方面开展深度合作，助力区域经济高质量发展。',
+            content: '1月10日上午，我校与高新区管委会战略合作签约仪式在行政楼会议室举行。校长与高新区管委会主任代表双方签署协议。\n\n根据协议，双方将共同建设"产业创新研究院"，围绕高新区主导产业方向，在关键技术攻关、创新平台建设、高层次人才引育等方面开展全方位合作。同时，学校将选派优秀教师到高新区企业挂职，企业技术骨干也将参与学校实践教学。\n\n此次合作是我校服务地方经济发展的重要举措，将有力推动产学研深度融合，促进科技成果转化落地。',
+            category: '校园新闻',
+            source: '科技处',
+            time: '2025-01-10 11:00',
+            image: 'https://picsum.photos/seed/campus-partner/600/400',
+            views: 1980
+        }, {
+            id: 10,
+            title: '关于校园部分路段施工封闭的温馨提示',
+            summary: '因地下管网改造施工，1月15日至2月5日校园南门至图书馆路段临时封闭，请师生绕行。',
+            content: '全校师生员工：\n\n因校园地下管网改造工程施工需要，自2025年1月15日起至2月5日，校园南门至图书馆路段将实行临时封闭。封闭期间，过往车辆和行人请从东门或西门绕行。\n\n施工期间可能产生噪音和扬尘，请周边楼宇师生关好门窗。如有不便，敬请谅解。\n\n特此提示。',
+            category: '通知公告',
+            source: '后勤保障处',
+            time: '2025-01-10 08:45',
+            image: 'https://picsum.photos/seed/campus-construction/600/400',
+            views: 7350
+        }, {
+            id: 11,
+            title: '我校辩论队在全省大学生辩论赛中获得冠军',
+            summary: '辩手们凭借扎实的逻辑和出色的临场发挥，战胜多所高校代表队，时隔五年再度捧杯。',
+            content: '1月9日，由省教育厅主办的全省大学生辩论赛总决赛在省电视台演播厅举行。我校辩论队与省内另一所重点高校代表队围绕"人工智能发展是否应该设置伦理边界"展开激烈辩论。\n\n比赛中，我校辩手逻辑清晰、引经据典，在立论、质询、自由辩论等环节均表现出色，最终以5:2的比分战胜对手，荣获冠军。三辩张同学获得"最佳辩手"称号。\n\n这是我校辩论队时隔五年再次夺得该项赛事冠军。校团委表示将以此为契机，进一步推动校园思辨文化建设。',
+            category: '学生活动',
+            source: '校团委',
+            time: '2025-01-09 20:00',
+            image: 'https://picsum.photos/seed/campus-debate/600/400',
+            views: 3120
+        }, {
+            id: 12,
+            title: '图书馆延长开放时间并增设24小时自习区',
+            summary: '为满足学生期末复习需求，图书馆自1月8日起延长开放至23:00，并新增200个24小时自习座位。',
+            content: '为营造良好的学习环境，满足广大学生期末复习和考研备考需求，图书馆决定自1月8日起调整开放时间。\n\n具体安排如下：\n一、主馆开放时间延长至23:00（原22:00）。\n二、在图书馆一层新增24小时自习区，提供200个座位，配备电源插座和无线网络。\n三、寒假期间开放安排将另行通知。\n\n请同学们自觉遵守图书馆管理规定，爱护公共设施，保持安静。祝大家学习进步！',
+            category: '教务信息',
+            source: '图书馆',
+            time: '2025-01-08 09:00',
+            image: 'https://picsum.photos/seed/campus-library/600/400',
+            views: 8460
+        }, {
+            id: 13,
+            title: '我校与三所海外高校签署学生交换协议 拓展国际交流渠道',
+            summary: '新签署的协议覆盖英国、澳大利亚和日本的高校，每年将选派30余名学生进行为期一学期的交换学习。',
+            content: '近日，我校与英国曼彻斯特大学、澳大利亚昆士兰大学和日本早稻田大学分别签署学生交换协议。根据协议，自2025年秋季学期起，双方每年互派交换生，我校每年将选派30余名学生赴上述高校进行为期一学期的学习交流。\n\n此外，协议还涉及教师互访、联合科研等内容。国际交流处负责人表示，此次协议的签署将进一步拓宽学生的国际视野，提升学校的国际化办学水平。\n\n有意参加交换项目的同学可关注国际处后续通知。',
+            category: '招生就业',
+            source: '国际交流处',
+            time: '2025-01-07 16:20',
+            image: 'https://picsum.photos/seed/campus-exchange/600/400',
+            views: 2240
+        }, {
+            id: 14,
+            title: '计算机学院学生在国际大学生程序设计竞赛中斩获银牌',
+            summary: '由三名本科生组成的代表队在与全球顶尖高校队伍的竞争中表现出色，获得亚洲区决赛银牌。',
+            content: '在刚刚结束的第49届国际大学生程序设计竞赛（ICPC）亚洲区决赛中，我校计算机学院代表队凭借扎实的算法功底和默契的团队配合，从200余支参赛队伍中脱颖而出，获得银牌。\n\n本次比赛题目涉及图论、动态规划、计算几何等多个领域，我校代表队最终解出7道题目，排名第15位，创造了近五年来我校在该赛事中的最好成绩。\n\n三名队员均为计算机科学与技术专业大三学生，他们表示将继续努力训练，争取在明年的全球总决赛中取得更好成绩。',
+            category: '科研成果',
+            source: '计算机学院',
+            time: '2025-01-07 13:30',
+            image: 'https://picsum.photos/seed/campus-coding/600/400',
+            views: 1870
+        }, {
+            id: 15,
+            title: '医学院举办"健康校园行"义诊活动 服务师生500余人次',
+            summary: '来自附属医院的专家团队为师生提供免费健康咨询和基础检查，受到广泛好评。',
+            content: '1月6日，医学院联合附属医院在校园广场举办了"健康校园行"大型义诊活动。来自内科、外科、眼科、口腔科、中医科等科室的20余名专家现场坐诊，为师生提供免费健康咨询和基础检查服务。\n\n活动从上午9点持续到下午4点，累计服务师生500余人次。现场还设置了急救技能演示区和健康知识展板，普及常见疾病的预防知识。\n\n参与活动的师生纷纷表示，这样的义诊活动非常贴心，让大家在校园内就能享受到专业的医疗服务。',
+            category: '院系风采',
+            source: '医学院',
+            time: '2025-01-06 17:00',
+            image: 'https://picsum.photos/seed/campus-health/600/400',
+            views: 1430
+        }, {
+            id: 16,
+            title: '校领导带队开展寒假前校园安全大检查',
+            summary: '检查组深入实验室、学生宿舍、食堂等重点区域，排查安全隐患，确保假期校园安全稳定。',
+            content: '1月5日上午，校党委书记、校长分别带队，对全校重点区域开展寒假前安全大检查。检查组先后走访了实验楼、学生宿舍、食堂、配电房等重点场所，详细检查了消防设施、实验室危化品管理、食品卫生安全等情况。\n\n对于检查中发现的问题，校领导要求相关部门立即整改，并强调要时刻绷紧安全这根弦，严格落实安全责任制，确保寒假期间校园安全稳定。\n\n学校办公室、保卫处、后勤保障处、实验室与设备管理处等部门负责人陪同检查。',
+            category: '校园新闻',
+            source: '保卫处',
+            time: '2025-01-05 14:20',
+            image: 'https://picsum.photos/seed/campus-safety/600/400',
+            views: 1080
+        }];
+
+        // ========== 状态管理 ==========
+        let currentSearch = '';
+        let isDarkTheme = false;
+
+        // ========== DOM元素 ==========
+        const newsGrid = document.getElementById('newsGrid');
+        const searchInput = document.getElementById('searchInput');
+        const searchClear = document.getElementById('searchClear');
+        const sectionTitle = document.getElementById('sectionTitle');
+        const newsCount = document.getElementById('newsCount');
+        const backToTop = document.getElementById('backToTop');
+        const modalOverlay = document.getElementById('modalOverlay');
+        const modalImage = document.getElementById('modalImage');
+        const modalCategory = document.getElementById('modalCategory');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalMeta = document.getElementById('modalMeta');
+        const modalBody = document.getElementById('modalBody');
+        const themeToggle = document.getElementById('themeToggle');
+
+        // ========== 工具函数 ==========
+        function formatViews(views) {
+            if (views >= 10000) return (views / 10000).toFixed(1) + '万阅读';
+            if (views >= 1000) return (views / 1000).toFixed(1) + '千阅读';
+            return views + '阅读';
+        }
+
+        function getCategoryColor(category) {
+            const colors = {
+                '校园新闻': '#2d5a27',
+                '通知公告': '#c0392b',
+                '学术动态': '#2c3e50',
+                '学生活动': '#d4a017',
+                '教务信息': '#1a5276',
+                '招生就业': '#6c3483',
+                '科研成果': '#b7652d',
+                '院系风采': '#1e8449'
+            };
+            return colors[category] || '#2d5a27';
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        // ========== 渲染函数（仅根据搜索过滤） ==========
+        function renderNews() {
+            const filteredNews = newsData.filter(item => {
+                const searchTerm = currentSearch.toLowerCase().trim();
+                return !searchTerm ||
+                    item.title.toLowerCase().includes(searchTerm) ||
+                    item.summary.toLowerCase().includes(searchTerm) ||
+                    item.content.toLowerCase().includes(searchTerm) ||
+                    item.source.toLowerCase().includes(searchTerm);
+            });
+
+            // 更新标题和计数
+            sectionTitle.textContent = currentSearch ? `🔍 搜索"${currentSearch}"的结果` : '📰 最新校园新闻';
+            newsCount.textContent = `共 ${filteredNews.length} 条`;
+
+            if (filteredNews.length === 0) {
+                newsGrid.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">📭</div>
+                        <div class="empty-state-text">没有找到相关新闻</div>
+                        <p style="margin-top:8px;font-size:13px;color:var(--text-muted);">试试更换关键词</p>
+                    </div>
+                `;
+                return;
+            }
+
+            newsGrid.innerHTML = filteredNews.map((item, index) => `
+                <div class="news-card" style="animation-delay:${index * 0.05}s" onclick="openModal(${item.id})">
+                    <div class="news-card-image" style="background-image:url('${item.image}')">
+                        <span class="news-card-category" style="background:${getCategoryColor(item.category)}">${item.category}</span>
+                    </div>
+                    <div class="news-card-body">
+                        <h3 class="news-card-title">${item.title}</h3>
+                        <p class="news-card-summary">${item.summary}</p>
+                        <div class="news-card-meta">
+                            <span class="source">${item.source}</span>
+                            <span class="meta-dot"></span>
+                            <span>${item.time}</span>
+                            <span class="meta-dot"></span>
+                            <span>${formatViews(item.views)}</span>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // ========== 弹窗功能 ==========
+        function openModal(id) {
+            const item = newsData.find(n => n.id === id);
+            if (!item) return;
+            modalImage.style.backgroundImage = `url('${item.image}')`;
+            modalCategory.textContent = item.category;
+            modalCategory.style.background = getCategoryColor(item.category);
+            modalTitle.textContent = item.title;
+            modalMeta.textContent = `${item.source} · ${item.time} · ${formatViews(item.views)}`;
+            modalBody.innerHTML = item.content.split('\n').map(p => `<p>${p}</p>`).join('');
+            modalOverlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            modalOverlay.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+        function closeModalOutside(event) {
+            if (event.target === modalOverlay) closeModal();
+        }
+
+        // ========== 搜索功能 ==========
+        const debouncedSearch = debounce((value) => {
+            currentSearch = value;
+            searchClear.classList.toggle('visible', value.length > 0);
+            renderNews();
+        }, 300);
+
+        searchInput.addEventListener('input', (e) => {
+            debouncedSearch(e.target.value);
+        });
+
+        function clearSearch() {
+            searchInput.value = '';
+            currentSearch = '';
+            searchClear.classList.remove('visible');
+            renderNews();
+            searchInput.focus();
+        }
+
+        // ========== 主题切换 ==========
+        function toggleTheme() {
+            isDarkTheme = !isDarkTheme;
+            document.documentElement.setAttribute('data-theme', isDarkTheme ? 'dark' : 'light');
+            themeToggle.textContent = isDarkTheme ? '☀️' : '🌙';
+            localStorage.setItem('news-theme', isDarkTheme ? 'dark' : 'light');
+        }
+
+        // ========== 刷新功能 ==========
+        function refreshNews() {
+            const btn = document.querySelector('.navbar-right .icon-btn:last-child');
+            btn.style.transform = 'rotate(360deg)';
+            btn.style.transition = 'transform 0.6s';
+            setTimeout(() => {
+                btn.style.transform = '';
+                renderNews();
+            }, 600);
+        }
+
+        // ========== 回到首页（清除搜索） ==========
+        function resetToHome() {
+            currentSearch = '';
+            searchInput.value = '';
+            searchClear.classList.remove('visible');
+            renderNews();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function scrollToTop() {
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // ========== 事件监听 ==========
+        document.addEventListener('DOMContentLoaded', () => {
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape' && modalOverlay.style.display === 'flex') {
+                    closeModal();
+                }
+                if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                    e.preventDefault();
+                    searchInput.focus();
+                }
+            });
+
+            window.addEventListener('scroll', () => {
+                backToTop.classList.toggle('visible', window.scrollY > 400);
+            });
+
+            const savedTheme = localStorage.getItem('news-theme');
+            if (savedTheme === 'dark') {
+                isDarkTheme = true;
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeToggle.textContent = '☀️';
+            }
+
+            renderNews();
+        });
+    </script>
+</body>
+</html>
