@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>管理后台 - 笃行五班新闻站</title>
+  <style>
+    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+    table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+    th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+    th { background: #f5f5f5; }
+    .hidden { display: none; }
+    input[type="password"] { padding: 8px; width: 250px; }
+    button { padding: 8px 16px; background: #2d5a27; color: white; border: none; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>笃行五班新闻站 - 管理后台</h1>
+  <div id="loginSection">
+    <input type="password" id="adminPassword" placeholder="管理员密码">
+    <button onclick="login()">登录</button>
+  </div>
+  <div id="dataSection" class="hidden">
+    <h2>用户数据</h2>
+    <pre id="userData"></pre>
+    <h2>新闻数据</h2>
+    <table id="newsTable">
+      <thead>
+        <tr><th>标题</th><th>分类</th><th>来源</th><th>时间</th><th>操作</th></tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+  </div>
+  <script>
+    const ADMIN_PASSWORD = '114514ab'; // 与前端管理员密码一致
+    async function login() {
+      const pwd = document.getElementById('adminPassword').value;
+      if (pwd === ADMIN_PASSWORD) {
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('dataSection').classList.remove('hidden');
+        await loadData();
+      } else {
+        alert('密码错误');
+      }
+    }
+    async function loadData() {
+      // 加载用户
+      const userRes = await fetch('/api/user');
+      const user = await userRes.json();
+      document.getElementById('userData').textContent = JSON.stringify(user, null, 2);
+      // 加载新闻
+      const newsRes = await fetch('/api/news');
+      const news = await newsRes.json();
+      const tbody = document.querySelector('#newsTable tbody');
+      tbody.innerHTML = '';
+      news.forEach(item => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${item.title}</td>
+          <td>${item.category}</td>
+          <td>${item.source}</td>
+          <td>${item.time}</td>
+          <td><button onclick="deleteNews('${item.id}')">删除</button></td>
+        `;
+        tbody.appendChild(row);
+      });
+    }
+    async function deleteNews(id) {
+      if (confirm('确定删除？')) {
+        await fetch(`/api/news/${id}`, { method: 'DELETE' });
+        await loadData();
+      }
+    }
+  </script>
+</body>
+</html>
