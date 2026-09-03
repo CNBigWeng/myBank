@@ -4,13 +4,14 @@
   <meta charset="UTF-8">
   <title>管理后台 - 笃行五班新闻站</title>
   <style>
-    body { font-family: sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; }
+    body { font-family: sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; }
     table { width: 100%; border-collapse: collapse; margin-top: 20px; }
     th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
     th { background: #f5f5f5; }
     .hidden { display: none; }
     input[type="password"] { padding: 8px; width: 250px; }
-    button { padding: 8px 16px; background: #2d5a27; color: white; border: none; cursor: pointer; }
+    button { padding: 8px 16px; background: #2d5a27; color: white; border: none; cursor: pointer; margin-right: 5px; }
+    .section { margin-top: 40px; }
   </style>
 </head>
 <body>
@@ -20,18 +21,26 @@
     <button onclick="login()">登录</button>
   </div>
   <div id="dataSection" class="hidden">
-    <h2>用户数据</h2>
-    <pre id="userData"></pre>
-    <h2>新闻数据</h2>
-    <table id="newsTable">
+    <h2>用户列表</h2>
+    <table id="usersTable">
       <thead>
-        <tr><th>标题</th><th>分类</th><th>来源</th><th>时间</th><th>操作</th></tr>
+        <tr><th>用户名</th><th>是否管理员</th><th>登录状态</th><th>操作</th></tr>
       </thead>
       <tbody></tbody>
     </table>
+
+    <div class="section">
+      <h2>新闻列表</h2>
+      <table id="newsTable">
+        <thead>
+          <tr><th>标题</th><th>分类</th><th>来源</th><th>时间</th><th>操作</th></tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </div>
   <script>
-    const ADMIN_PASSWORD = '114514ab'; // 与前端管理员密码一致
+    const ADMIN_PASSWORD = '114514ab';
     async function login() {
       const pwd = document.getElementById('adminPassword').value;
       if (pwd === ADMIN_PASSWORD) {
@@ -43,15 +52,27 @@
       }
     }
     async function loadData() {
-      // 加载用户
-      const userRes = await fetch('/api/user');
-      const user = await userRes.json();
-      document.getElementById('userData').textContent = JSON.stringify(user, null, 2);
+      // 加载用户列表
+      const usersRes = await fetch('/api/users');
+      const users = await usersRes.json();
+      const usersTbody = document.querySelector('#usersTable tbody');
+      usersTbody.innerHTML = '';
+      users.forEach(user => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+          <td>${user.name || '未知'}</td>
+          <td>${user.isAdmin ? '是' : '否'}</td>
+          <td>${user.isLoggedIn ? '在线' : '离线'}</td>
+          <td>（无操作）</td>
+        `;
+        usersTbody.appendChild(row);
+      });
+
       // 加载新闻
       const newsRes = await fetch('/api/news');
       const news = await newsRes.json();
-      const tbody = document.querySelector('#newsTable tbody');
-      tbody.innerHTML = '';
+      const newsTbody = document.querySelector('#newsTable tbody');
+      newsTbody.innerHTML = '';
       news.forEach(item => {
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -61,7 +82,7 @@
           <td>${item.time}</td>
           <td><button onclick="deleteNews('${item.id}')">删除</button></td>
         `;
-        tbody.appendChild(row);
+        newsTbody.appendChild(row);
       });
     }
     async function deleteNews(id) {
