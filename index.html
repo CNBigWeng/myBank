@@ -193,6 +193,52 @@
             color: var(--text);
         }
 
+        .user-btn {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            padding: 4px 12px 4px 8px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: var(--card-bg);
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .user-btn:hover {
+            background: var(--tag-bg);
+            color: var(--text);
+        }
+        .user-btn .avatar {
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: var(--primary-light);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            font-size: 14px;
+        }
+        .user-btn .username-text {
+            max-width: 80px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .admin-badge {
+            background: #d4a017;
+            color: #fff;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 10px;
+            font-weight: 600;
+            margin-left: 4px;
+        }
+
         /* 主内容区 */
         .main-content {
             max-width: 900px;
@@ -256,14 +302,8 @@
         }
 
         @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(16px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+            from { opacity: 0; transform: translateY(16px); }
+            to { opacity: 1; transform: translateY(0); }
         }
 
         .news-card-image {
@@ -367,7 +407,7 @@
             color: var(--text-secondary);
         }
 
-        /* 弹窗 */
+        /* 弹窗（新闻详情） */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -381,14 +421,7 @@
             backdrop-filter: blur(4px);
             -webkit-backdrop-filter: blur(4px);
         }
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-            }
-            to {
-                opacity: 1;
-            }
-        }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
         .modal {
             background: var(--card-bg);
@@ -401,16 +434,7 @@
             animation: slideUp 0.35s ease;
             position: relative;
         }
-        @keyframes slideUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px) scale(0.96);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
-        }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(30px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
         .modal-close {
             position: sticky;
@@ -490,67 +514,162 @@
             margin-bottom: 14px;
         }
 
+        /* 删除按钮 */
+        .delete-btn {
+            background: #c0392b;
+            color: #fff;
+            border: none;
+            padding: 6px 14px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 12px;
+            transition: background 0.2s;
+            display: none;
+        }
+        .delete-btn:hover {
+            background: #a93226;
+        }
+
+        /* 用户弹窗 */
+        .user-modal .modal {
+            max-width: 400px;
+        }
+        .user-modal-content {
+            padding: 28px 24px 24px;
+        }
+        .user-modal-content h3 {
+            font-size: 20px;
+            margin-bottom: 16px;
+            color: var(--text);
+        }
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 500;
+            margin-bottom: 6px;
+            color: var(--text-secondary);
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 14px;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            font-size: 14px;
+            background: var(--bg);
+            color: var(--text);
+            outline: none;
+            transition: border-color 0.2s;
+            font-family: inherit;
+        }
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            border-color: var(--primary);
+        }
+        .btn {
+            padding: 10px 18px;
+            border-radius: var(--radius-sm);
+            border: none;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        .btn-primary {
+            background: var(--primary);
+            color: #fff;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+        .btn-secondary {
+            background: var(--tag-bg);
+            color: var(--text);
+        }
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+        .btn-block {
+            width: 100%;
+            margin-top: 8px;
+        }
+        .error-msg {
+            color: #c0392b;
+            font-size: 13px;
+            margin-top: 8px;
+            display: none;
+        }
+        .logout-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 13px;
+            cursor: pointer;
+            text-decoration: underline;
+            margin-top: 12px;
+        }
+        .logout-btn:hover {
+            color: var(--text);
+        }
+
+        /* 管理员验证按钮 */
+        .admin-verify-btn {
+            background: none;
+            border: 1px dashed var(--text-muted);
+            color: var(--text-secondary);
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-top: 8px;
+            transition: all 0.2s;
+        }
+        .admin-verify-btn:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* 发布新闻弹窗 */
+        .news-modal .modal {
+            max-width: 600px;
+        }
+
         /* 响应式 */
         @media (max-width: 768px) {
-            .navbar {
-                padding: 0 12px;
-                height: 56px;
-                gap: 8px;
-            }
-            .logo {
-                font-size: 17px;
-            }
-            .logo-icon {
-                width: 30px;
-                height: 30px;
-                font-size: 15px;
-            }
-            .search-bar input {
-                padding: 8px 36px 8px 36px;
-                font-size: 13px;
-            }
-            .search-icon {
-                left: 12px;
-                font-size: 14px;
-            }
-            .main-content {
-                padding: 14px 12px 30px;
-            }
-            .news-card-image {
-                height: 170px;
-            }
-            .news-card-title {
-                font-size: 15px;
-            }
-            .modal-content {
-                padding: 18px 18px 24px;
-            }
-            .modal-title {
-                font-size: 19px;
-            }
-            .modal-image {
-                height: 200px;
-            }
-            .section-title {
-                font-size: 17px;
-            }
+            .navbar { padding: 0 12px; height: 56px; gap: 8px; }
+            .logo { font-size: 17px; }
+            .logo-icon { width: 30px; height: 30px; font-size: 15px; }
+            .search-bar input { padding: 8px 36px 8px 36px; font-size: 13px; }
+            .search-icon { left: 12px; font-size: 14px; }
+            .user-btn .username-text { max-width: 60px; }
+            .main-content { padding: 14px 12px 30px; }
+            .news-card-image { height: 170px; }
+            .news-card-title { font-size: 15px; }
+            .modal-content { padding: 18px 18px 24px; }
+            .modal-title { font-size: 19px; }
+            .modal-image { height: 200px; }
+            .section-title { font-size: 17px; }
         }
 
         @media (max-width: 480px) {
-            .navbar {
-                padding: 0 8px;
-            }
-            .navbar-right .icon-btn {
-                width: 34px;
-                height: 34px;
-                font-size: 16px;
-            }
-            .main-content {
-                padding: 10px 8px 24px;
-            }
-            .news-grid {
-                gap: 10px;
-            }
+            .navbar { padding: 0 8px; }
+            .navbar-right .icon-btn { width: 34px; height: 34px; font-size: 16px; }
+            .user-btn { padding: 4px 8px; }
+            .user-btn .username-text { display: none; }
+            .main-content { padding: 10px 8px 24px; }
+            .news-grid { gap: 10px; }
         }
 
         /* 回到顶部 */
@@ -604,6 +723,12 @@
         <div class="navbar-right">
             <button class="icon-btn" onclick="toggleTheme()" title="切换主题" id="themeToggle">🌙</button>
             <button class="icon-btn" onclick="refreshNews()" title="刷新">🔄</button>
+            <button class="icon-btn" onclick="openNewsUploadModal()" title="发布新闻">✏️</button>
+            <button class="user-btn" id="userBtn" onclick="openUserModal()" title="用户">
+                <span class="avatar" id="userAvatar">👤</span>
+                <span class="username-text" id="userNameDisplay">登录</span>
+                <span class="admin-badge" id="adminBadge" style="display:none;">管理员</span>
+            </button>
         </div>
     </header>
 
@@ -630,33 +755,80 @@
                 <span class="modal-category" id="modalCategory"></span>
                 <h2 class="modal-title" id="modalTitle"></h2>
                 <div class="modal-meta" id="modalMeta"></div>
+                <button class="delete-btn" id="deleteNewsBtn" onclick="deleteCurrentNews()" style="display:none;">删除新闻</button>
                 <div class="modal-body" id="modalBody"></div>
             </div>
         </div>
     </div>
 
-    <script>
-        // ========== 班级新闻数据（当前为空，请在此添加新闻对象） ==========
-        const newsData = [
-            // 示例格式：
-            // {
-            //     id: 1,
-            //     title: '新闻标题',
-            //     summary: '新闻摘要',
-            //     content: '新闻正文，可使用\n换行。',
-            //     category: '班级活动', // 可根据需要自定义类别，如：班级活动、学习动态、荣誉表彰、通知提醒等
-            //     source: '来源（如：班委会）',
-            //     time: '2025-01-01 10:00',
-            //     image: 'https://picsum.photos/seed/xxx/600/400',
-            //     views: 100
-            // }
-        ];
+    <!-- 用户登录/编辑弹窗 -->
+    <div class="modal-overlay user-modal" id="userModalOverlay" style="display:none;" onclick="closeUserModalOutside(event)">
+        <div class="modal" id="userModal">
+            <button class="modal-close" onclick="closeUserModal()">✕</button>
+            <div class="user-modal-content" id="userModalContent">
+                <!-- 动态内容 -->
+            </div>
+        </div>
+    </div>
 
-        // ========== 状态管理 ==========
+    <!-- 发布新闻弹窗 -->
+    <div class="modal-overlay news-modal" id="newsModalOverlay" style="display:none;" onclick="closeNewsModalOutside(event)">
+        <div class="modal" id="newsModal">
+            <button class="modal-close" onclick="closeNewsModal()">✕</button>
+            <div class="user-modal-content">
+                <h3>发布班级新闻</h3>
+                <form id="newsForm" onsubmit="submitNews(event)">
+                    <div class="form-group">
+                        <label for="newsTitle">标题 *</label>
+                        <input type="text" id="newsTitle" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newsSummary">摘要 *</label>
+                        <input type="text" id="newsSummary" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="newsContent">正文内容 *</label>
+                        <textarea id="newsContent" required placeholder="支持换行"></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label for="newsCategory">分类</label>
+                        <select id="newsCategory">
+                            <option value="班级活动">班级活动</option>
+                            <option value="学习动态">学习动态</option>
+                            <option value="荣誉表彰">荣誉表彰</option>
+                            <option value="通知提醒">通知提醒</option>
+                            <option value="其他">其他</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="newsSource">来源（留空则使用登录名）</label>
+                        <input type="text" id="newsSource" placeholder="例如：班委会">
+                    </div>
+                    <div class="form-group">
+                        <label for="newsImage">图片链接</label>
+                        <input type="url" id="newsImage" placeholder="https://...">
+                    </div>
+                    <button type="submit" class="btn btn-primary btn-block">发布新闻</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== 配置 ==========
+        const DEFAULT_PASSWORD = 'dxwbnbfwqb';   // 普通用户密码
+        const ADMIN_PASSWORD = '114514ab';       // 管理员密码
+        const COOLDOWN_MINUTES = 10;             // 普通用户发布冷却（分钟）
+        const API_BASE = '/api';                 // Cloudflare Workers API 基础路径
+
+        // ========== 状态 ==========
+        let newsData = [];
+        let currentUser = { name: '', isLoggedIn: false, isAdmin: false };
         let currentSearch = '';
         let isDarkTheme = false;
+        let currentOpenedNewsId = null;
 
-        // ========== DOM元素 ==========
+        // ========== DOM 元素 ==========
         const newsGrid = document.getElementById('newsGrid');
         const searchInput = document.getElementById('searchInput');
         const searchClear = document.getElementById('searchClear');
@@ -669,7 +841,15 @@
         const modalTitle = document.getElementById('modalTitle');
         const modalMeta = document.getElementById('modalMeta');
         const modalBody = document.getElementById('modalBody');
+        const deleteNewsBtn = document.getElementById('deleteNewsBtn');
         const themeToggle = document.getElementById('themeToggle');
+        const userBtn = document.getElementById('userBtn');
+        const userAvatar = document.getElementById('userAvatar');
+        const userNameDisplay = document.getElementById('userNameDisplay');
+        const adminBadge = document.getElementById('adminBadge');
+        const userModalOverlay = document.getElementById('userModalOverlay');
+        const userModalContent = document.getElementById('userModalContent');
+        const newsModalOverlay = document.getElementById('newsModalOverlay');
 
         // ========== 工具函数 ==========
         function formatViews(views) {
@@ -697,7 +877,269 @@
             };
         }
 
-        // ========== 渲染函数 ==========
+        // ========== 云端 API 函数（带回退到 localStorage） ==========
+        async function apiFetch(path, options = {}) {
+            try {
+                const res = await fetch(API_BASE + path, options);
+                if (!res.ok) throw new Error('API error');
+                return await res.json();
+            } catch (e) {
+                console.warn('API 调用失败，回退到 localStorage', e);
+                return null;
+            }
+        }
+
+        async function loadNewsFromCloud() {
+            const apiData = await apiFetch('/news');
+            if (apiData !== null) {
+                return apiData;
+            }
+            // 回退
+            const stored = localStorage.getItem('dxwb_news_data');
+            return stored ? JSON.parse(stored) : [];
+        }
+
+        async function saveNewsToCloud(newsArray) {
+            // 尝试通过 API 保存（全量覆盖方式，实际应使用更细粒度操作）
+            try {
+                const res = await fetch(API_BASE + '/news', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(newsArray) // 发送整个数组，Worker 可处理全量替换或增量
+                });
+                if (!res.ok) throw new Error('API save failed');
+            } catch (e) {
+                console.warn('API 保存失败，使用 localStorage', e);
+                localStorage.setItem('dxwb_news_data', JSON.stringify(newsArray));
+            }
+        }
+
+        async function loadUserFromCloud() {
+            const apiData = await apiFetch('/user');
+            if (apiData !== null) {
+                return apiData;
+            }
+            const stored = localStorage.getItem('dxwb_user_data');
+            return stored ? JSON.parse(stored) : { name: '', isLoggedIn: false, isAdmin: false };
+        }
+
+        async function saveUserToCloud(userData) {
+            try {
+                const res = await fetch(API_BASE + '/user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData)
+                });
+                if (!res.ok) throw new Error('API user save failed');
+            } catch (e) {
+                console.warn('API 用户保存失败，使用 localStorage', e);
+                localStorage.setItem('dxwb_user_data', JSON.stringify(userData));
+            }
+        }
+
+        // ========== 用户界面更新 ==========
+        function updateUserUI() {
+            if (currentUser.isLoggedIn) {
+                userNameDisplay.textContent = currentUser.name || '同学';
+                userAvatar.textContent = (currentUser.name || '同').charAt(0).toUpperCase();
+                adminBadge.style.display = currentUser.isAdmin ? 'inline-block' : 'none';
+            } else {
+                userNameDisplay.textContent = '登录';
+                userAvatar.textContent = '👤';
+                adminBadge.style.display = 'none';
+            }
+        }
+
+        // ========== 打开用户弹窗 ==========
+        function openUserModal() {
+            if (currentUser.isLoggedIn) {
+                const adminStatus = currentUser.isAdmin ? '（管理员）' : '';
+                let adminButton = '';
+                if (!currentUser.isAdmin) {
+                    adminButton = `<button class="admin-verify-btn" onclick="verifyAdmin()">管理员验证</button>`;
+                } else {
+                    adminButton = `<p style="font-size:13px;color:var(--text-muted);margin-top:8px;">已拥有管理员权限</p>`;
+                }
+                userModalContent.innerHTML = `
+                    <h3>编辑我的名字${adminStatus}</h3>
+                    <div class="form-group">
+                        <label for="editNameInput">名字</label>
+                        <input type="text" id="editNameInput" value="${currentUser.name}" placeholder="输入你的名字" maxlength="20">
+                    </div>
+                    <button class="btn btn-primary btn-block" onclick="saveUserName()">保存</button>
+                    ${adminButton}
+                    <button class="logout-btn" onclick="logout()">退出登录</button>
+                `;
+            } else {
+                userModalContent.innerHTML = `
+                    <h3>登录</h3>
+                    <div class="form-group">
+                        <label for="loginUsernameInput">用户名</label>
+                        <input type="text" id="loginUsernameInput" placeholder="请输入用户名" autocomplete="off">
+                    </div>
+                    <div class="form-group">
+                        <label for="loginPasswordInput">密码</label>
+                        <input type="password" id="loginPasswordInput" placeholder="请输入普通用户密码" autocomplete="off">
+                    </div>
+                    <div class="error-msg" id="loginError">用户名不能为空或密码错误</div>
+                    <button class="btn btn-primary btn-block" onclick="login()">登录</button>
+                    <p style="font-size:12px;color:var(--text-muted);margin-top:12px;">管理员权限需登录后验证</p>
+                `;
+            }
+            userModalOverlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeUserModal() {
+            userModalOverlay.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+        function closeUserModalOutside(event) {
+            if (event.target === userModalOverlay) closeUserModal();
+        }
+
+        // ========== 登录 ==========
+        async function login() {
+            const usernameInput = document.getElementById('loginUsernameInput');
+            const passwordInput = document.getElementById('loginPasswordInput');
+            const errorMsg = document.getElementById('loginError');
+            if (!usernameInput || !passwordInput) return;
+            const username = usernameInput.value.trim();
+            const password = passwordInput.value.trim();
+
+            if (username === '') {
+                errorMsg.textContent = '用户名不能为空';
+                errorMsg.style.display = 'block';
+                usernameInput.focus();
+                return;
+            }
+
+            if (password === DEFAULT_PASSWORD) {
+                currentUser.isLoggedIn = true;
+                currentUser.isAdmin = false;
+                currentUser.name = username;
+                await saveUserToCloud(currentUser);
+                updateUserUI();
+                closeUserModal();
+            } else {
+                errorMsg.textContent = '密码错误，请重试';
+                errorMsg.style.display = 'block';
+                passwordInput.value = '';
+                passwordInput.focus();
+            }
+        }
+
+        // ========== 管理员验证 ==========
+        async function verifyAdmin() {
+            const adminPassword = prompt('请输入管理员密码：');
+            if (adminPassword === null) return;
+            if (adminPassword.trim() === ADMIN_PASSWORD) {
+                currentUser.isAdmin = true;
+                await saveUserToCloud(currentUser);
+                updateUserUI();
+                alert('管理员验证成功！');
+                openUserModal();
+            } else {
+                alert('管理员密码错误');
+            }
+        }
+
+        // ========== 保存用户名 ==========
+        async function saveUserName() {
+            const nameInput = document.getElementById('editNameInput');
+            if (!nameInput) return;
+            const newName = nameInput.value.trim();
+            if (newName) {
+                currentUser.name = newName;
+                await saveUserToCloud(currentUser);
+                updateUserUI();
+                closeUserModal();
+            } else {
+                alert('名字不能为空');
+            }
+        }
+
+        // ========== 退出登录 ==========
+        async function logout() {
+            currentUser.isLoggedIn = false;
+            currentUser.isAdmin = false;
+            await saveUserToCloud(currentUser);
+            updateUserUI();
+            closeUserModal();
+        }
+
+        // ========== 新闻发布弹窗 ==========
+        function openNewsUploadModal() {
+            if (!currentUser.isLoggedIn) {
+                alert('请先登录后再发布新闻');
+                openUserModal();
+                return;
+            }
+            newsModalOverlay.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+            document.getElementById('newsForm').reset();
+            document.getElementById('newsCategory').value = '班级活动';
+        }
+        function closeNewsModal() {
+            newsModalOverlay.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+        function closeNewsModalOutside(event) {
+            if (event.target === newsModalOverlay) closeNewsModal();
+        }
+
+        // ========== 提交新闻 ==========
+        async function submitNews(event) {
+            event.preventDefault();
+
+            // 冷却检查（普通用户）
+            if (!currentUser.isAdmin) {
+                const lastPublishTime = parseInt(localStorage.getItem('dxwb_last_publish_time') || '0');
+                const now = Date.now();
+                const cooldown = COOLDOWN_MINUTES * 60 * 1000;
+                if (now - lastPublishTime < cooldown) {
+                    const remainMinutes = Math.ceil((cooldown - (now - lastPublishTime)) / 60000);
+                    alert(`发布冷却中，请${remainMinutes}分钟后再试`);
+                    return;
+                }
+            }
+
+            const title = document.getElementById('newsTitle').value.trim();
+            const summary = document.getElementById('newsSummary').value.trim();
+            const content = document.getElementById('newsContent').value.trim();
+            const category = document.getElementById('newsCategory').value;
+            const source = document.getElementById('newsSource').value.trim() || (currentUser.name || (currentUser.isAdmin ? '管理员' : '匿名投稿'));
+            const image = document.getElementById('newsImage').value.trim() || 'https://picsum.photos/seed/default/600/400';
+
+            if (!title || !summary || !content) {
+                alert('标题、摘要和正文为必填项');
+                return;
+            }
+
+            const newNews = {
+                id: Date.now().toString(),
+                title,
+                summary,
+                content,
+                category,
+                source,
+                time: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'),
+                image,
+                views: 0
+            };
+
+            newsData.unshift(newNews);
+            await saveNewsToCloud(newsData);
+
+            if (!currentUser.isAdmin) {
+                localStorage.setItem('dxwb_last_publish_time', Date.now().toString());
+            }
+
+            renderNews();
+            closeNewsModal();
+        }
+
+        // ========== 渲染新闻 ==========
         function renderNews() {
             const filteredNews = newsData.filter(item => {
                 const searchTerm = currentSearch.toLowerCase().trim();
@@ -716,14 +1158,14 @@
                     <div class="empty-state">
                         <div class="empty-state-icon">📭</div>
                         <div class="empty-state-text">暂无班级新闻</div>
-                        <p style="margin-top:8px;font-size:13px;color:var(--text-muted);">请添加新闻数据或稍后再来</p>
+                        <p style="margin-top:8px;font-size:13px;color:var(--text-muted);">点击右上角✏️按钮发布第一条新闻</p>
                     </div>
                 `;
                 return;
             }
 
             newsGrid.innerHTML = filteredNews.map((item, index) => `
-                <div class="news-card" style="animation-delay:${index * 0.05}s" onclick="openModal(${item.id})">
+                <div class="news-card" style="animation-delay:${index * 0.05}s" onclick="openModal('${item.id}')">
                     <div class="news-card-image" style="background-image:url('${item.image}')">
                         <span class="news-card-category" style="background:${getCategoryColor(item.category)}">${item.category}</span>
                     </div>
@@ -742,27 +1184,45 @@
             `).join('');
         }
 
-        // ========== 弹窗功能 ==========
+        // ========== 新闻详情弹窗 ==========
         function openModal(id) {
             const item = newsData.find(n => n.id === id);
             if (!item) return;
+            currentOpenedNewsId = id;
             modalImage.style.backgroundImage = `url('${item.image}')`;
             modalCategory.textContent = item.category;
             modalCategory.style.background = getCategoryColor(item.category);
             modalTitle.textContent = item.title;
             modalMeta.textContent = `${item.source} · ${item.time} · ${formatViews(item.views)}`;
             modalBody.innerHTML = item.content.split('\n').map(p => `<p>${p}</p>`).join('');
+
+            deleteNewsBtn.style.display = currentUser.isAdmin ? 'inline-block' : 'none';
+
             modalOverlay.style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
-
         function closeModal() {
             modalOverlay.style.display = 'none';
             document.body.style.overflow = '';
+            currentOpenedNewsId = null;
         }
-
         function closeModalOutside(event) {
             if (event.target === modalOverlay) closeModal();
+        }
+
+        // ========== 删除新闻（仅管理员） ==========
+        async function deleteCurrentNews() {
+            if (!currentUser.isAdmin) {
+                alert('只有管理员才能删除新闻');
+                return;
+            }
+            if (!currentOpenedNewsId) return;
+            if (confirm('确定要删除这条新闻吗？此操作不可恢复。')) {
+                newsData = newsData.filter(item => item.id !== currentOpenedNewsId);
+                await saveNewsToCloud(newsData);
+                renderNews();
+                closeModal();
+            }
         }
 
         // ========== 搜索功能 ==========
@@ -771,11 +1231,9 @@
             searchClear.classList.toggle('visible', value.length > 0);
             renderNews();
         }, 300);
-
         searchInput.addEventListener('input', (e) => {
             debouncedSearch(e.target.value);
         });
-
         function clearSearch() {
             searchInput.value = '';
             currentSearch = '';
@@ -793,17 +1251,12 @@
         }
 
         // ========== 刷新功能 ==========
-        function refreshNews() {
-            const btn = document.querySelector('.navbar-right .icon-btn:last-child');
-            btn.style.transform = 'rotate(360deg)';
-            btn.style.transition = 'transform 0.6s';
-            setTimeout(() => {
-                btn.style.transform = '';
-                renderNews();
-            }, 600);
+        async function refreshNews() {
+            newsData = await loadNewsFromCloud();
+            renderNews();
         }
 
-        // ========== 回到首页（清除搜索） ==========
+        // ========== 回到首页 ==========
         function resetToHome() {
             currentSearch = '';
             searchInput.value = '';
@@ -811,16 +1264,33 @@
             renderNews();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
-
         function scrollToTop() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
 
-        // ========== 事件监听 ==========
-        document.addEventListener('DOMContentLoaded', () => {
+        // ========== 初始化 ==========
+        async function initApp() {
+            // 恢复主题
+            const savedTheme = localStorage.getItem('news-theme');
+            if (savedTheme === 'dark') {
+                isDarkTheme = true;
+                document.documentElement.setAttribute('data-theme', 'dark');
+                themeToggle.textContent = '☀️';
+            }
+
+            // 加载数据
+            newsData = await loadNewsFromCloud();
+            currentUser = await loadUserFromCloud();
+
+            updateUserUI();
+            renderNews();
+
+            // 事件监听
             document.addEventListener('keydown', (e) => {
-                if (e.key === 'Escape' && modalOverlay.style.display === 'flex') {
-                    closeModal();
+                if (e.key === 'Escape') {
+                    if (modalOverlay.style.display === 'flex') closeModal();
+                    if (userModalOverlay.style.display === 'flex') closeUserModal();
+                    if (newsModalOverlay.style.display === 'flex') closeNewsModal();
                 }
                 if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
                     e.preventDefault();
@@ -831,16 +1301,10 @@
             window.addEventListener('scroll', () => {
                 backToTop.classList.toggle('visible', window.scrollY > 400);
             });
+        }
 
-            const savedTheme = localStorage.getItem('news-theme');
-            if (savedTheme === 'dark') {
-                isDarkTheme = true;
-                document.documentElement.setAttribute('data-theme', 'dark');
-                themeToggle.textContent = '☀️';
-            }
-
-            renderNews();
-        });
+        // 启动
+        document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
 </html>
