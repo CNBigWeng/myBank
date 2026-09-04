@@ -900,12 +900,11 @@
         }
 
         async function saveNewsToCloud(newsArray) {
-            // 尝试通过 API 保存（全量覆盖方式，实际应使用更细粒度操作）
             try {
                 const res = await fetch(API_BASE + '/news', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(newsArray) // 发送整个数组，Worker 可处理全量替换或增量
+                    body: JSON.stringify(newsArray)
                 });
                 if (!res.ok) throw new Error('API save failed');
             } catch (e) {
