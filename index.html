@@ -816,8 +816,8 @@
 
     <script>
         // ========== 配置 ==========
-        const DEFAULT_PASSWORD = 'dxwbnbfwqb';   // 普通用户密码
-        const ADMIN_PASSWORD = '114514ab';       // 管理员密码
+        const DEFAULT_PASSWORD = 'dxwbnbfwqb';   // 默认初始密码，仅用于后端创建新用户时比对
+        const ADMIN_PASSWORD = '114514ab';       // 管理员验证密码
         const COOLDOWN_MINUTES = 10;             // 普通用户发布冷却（分钟）
         const API_BASE = '/api';                 // Cloudflare Workers API 基础路径
 
@@ -877,7 +877,7 @@
             };
         }
 
-        // ========== 云端 API 函数（带回退到 localStorage） ==========
+        // ========== 云端 API 函数 ==========
         async function apiFetch(path, options = {}) {
             try {
                 const res = await fetch(API_BASE + path, options);
@@ -887,11 +887,12 @@
                 }
                 return await res.json();
             } catch (e) {
-                console.warn('API 调用失败，回退到 localStorage', e);
+                console.warn('API 调用失败', e);
                 return null;
             }
         }
 
+        // 加载新闻
         async function loadNewsFromCloud() {
             const apiData = await apiFetch('/news');
             if (apiData !== null) {
@@ -901,6 +902,7 @@
             return stored ? JSON.parse(stored) : [];
         }
 
+        // 保存新闻（全量数组）
         async function saveNewsToCloud(newsArray) {
             try {
                 const res = await fetch(API_BASE + '/news', {
@@ -915,6 +917,7 @@
             }
         }
 
+        // 加载当前用户（恢复会话）
         async function loadUserFromCloud() {
             const apiData = await apiFetch('/user');
             if (apiData !== null) {
@@ -924,21 +927,59 @@
             return stored ? JSON.parse(stored) : { name: '', isLoggedIn: false, isAdmin: false };
         }
 
-        async function saveUserToCloud(userData) {
+        // 登录请求
+        async function loginUser(name, password) {
+            try {
+                const res = await fetch(API_BASE + '/user/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, password })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || '登录失败');
+                }
+                return data;
+            } catch (e) {
+                console.error('登录失败', e);
+                return { success: false, error: e.message };
+            }
+        }
+
+        // 保存用户信息（修改名字、管理员状态等，不修改密码）
+        async function saveUserInfo(userData) {
             try {
                 const res = await fetch(API_BASE + '/user', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(userData)
                 });
+                const data = await res.json();
                 if (!res.ok) {
-                    const errorData = await res.json().catch(() => ({}));
-                    throw new Error(errorData.error || '保存失败');
+                    throw new Error(data.error || '保存失败');
                 }
-                return await res.json();
+                return data;
             } catch (e) {
-                console.warn('API 用户保存失败', e);
-                localStorage.setItem('dxwb_user_data', JSON.stringify(userData));
+                console.warn('保存用户信息失败', e);
+                return { success: false, error: e.message };
+            }
+        }
+
+        // 修改密码
+        async function changeUserPassword(name, oldPassword, newPassword) {
+            try {
+                const res = await fetch(API_BASE + '/user/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name, oldPassword, newPassword })
+                });
+                const data = await res.json();
+                if (!res.ok) {
+                    throw new Error(data.error || '修改失败');
+                }
+                return data;
+            } catch (e) {
+                console.error('修改密码失败', e);
                 return { success: false, error: e.message };
             }
         }
@@ -972,7 +1013,8 @@
                         <label for="editNameInput">名字</label>
                         <input type="text" id="editNameInput" value="${currentUser.name}" placeholder="输入你的名字" maxlength="20">
                     </div>
-                    <button class="btn btn-primary btn-block" onclick="saveUserName()">保存</button>
+                    <button class="btn btn-primary btn-block" onclick="saveUserName()">保存名字</button>
+                    <button class="btn btn-secondary btn-block" onclick="openChangePasswordModal()">修改密码</button>
                     ${adminButton}
                     <button class="logout-btn" onclick="logout()">退出登录</button>
                 `;
@@ -985,11 +1027,11 @@
                     </div>
                     <div class="form-group">
                         <label for="loginPasswordInput">密码</label>
-                        <input type="password" id="loginPasswordInput" placeholder="请输入普通用户密码" autocomplete="off">
+                        <input type="password" id="loginPasswordInput" placeholder="请输入密码" autocomplete="off">
                     </div>
                     <div class="error-msg" id="loginError">用户名不能为空或密码错误</div>
                     <button class="btn btn-primary btn-block" onclick="login()">登录</button>
-                    <p style="font-size:12px;color:var(--text-muted);margin-top:12px;">管理员权限需登录后验证</p>
+                    <p style="font-size:12px;color:var(--text-muted);margin-top:12px;">首次登录请使用默认密码</p>
                 `;
             }
             userModalOverlay.style.display = 'flex';
@@ -1004,6 +1046,44 @@
             if (event.target === userModalOverlay) closeUserModal();
         }
 
+        // ========== 打开修改密码弹窗 ==========
+        function openChangePasswordModal() {
+            userModalContent.innerHTML = `
+                <h3>修改密码</h3>
+                <div class="form-group">
+                    <label for="oldPasswordInput">旧密码</label>
+                    <input type="password" id="oldPasswordInput" placeholder="请输入旧密码" autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="newPasswordInput">新密码</label>
+                    <input type="password" id="newPasswordInput" placeholder="请输入新密码" autocomplete="off">
+                </div>
+                <div class="error-msg" id="changePwdError"></div>
+                <button class="btn btn-primary btn-block" onclick="submitPasswordChange()">确认修改</button>
+                <button class="logout-btn" onclick="openUserModal()">返回</button>
+            `;
+            // 弹窗保持打开
+        }
+
+        async function submitPasswordChange() {
+            const oldPwd = document.getElementById('oldPasswordInput').value.trim();
+            const newPwd = document.getElementById('newPasswordInput').value.trim();
+            const errorMsg = document.getElementById('changePwdError');
+            if (!oldPwd || !newPwd) {
+                errorMsg.textContent = '请输入旧密码和新密码';
+                errorMsg.style.display = 'block';
+                return;
+            }
+            const result = await changeUserPassword(currentUser.name, oldPwd, newPwd);
+            if (result.success) {
+                alert('密码修改成功');
+                openUserModal(); // 返回用户面板
+            } else {
+                errorMsg.textContent = result.error || '修改失败';
+                errorMsg.style.display = 'block';
+            }
+        }
+
         // ========== 登录 ==========
         async function login() {
             const usernameInput = document.getElementById('loginUsernameInput');
@@ -1013,31 +1093,20 @@
             const username = usernameInput.value.trim();
             const password = passwordInput.value.trim();
 
-            if (username === '') {
-                errorMsg.textContent = '用户名不能为空';
+            if (!username || !password) {
+                errorMsg.textContent = '用户名和密码不能为空';
                 errorMsg.style.display = 'block';
-                usernameInput.focus();
                 return;
             }
 
-            if (password === DEFAULT_PASSWORD) {
-                currentUser.isLoggedIn = true;
-                currentUser.isAdmin = false;
-                currentUser.name = username;
-                const result = await saveUserToCloud(currentUser);
-                if (result && result.success === false) {
-                    errorMsg.textContent = result.error || '用户名已被使用，请更换';
-                    errorMsg.style.display = 'block';
-                    currentUser.isLoggedIn = false;
-                    return;
-                }
+            const result = await loginUser(username, password);
+            if (result.success) {
+                currentUser = { name: result.user.name, isLoggedIn: true, isAdmin: result.user.isAdmin || false };
                 updateUserUI();
                 closeUserModal();
             } else {
-                errorMsg.textContent = '密码错误，请重试';
+                errorMsg.textContent = result.error || '登录失败';
                 errorMsg.style.display = 'block';
-                passwordInput.value = '';
-                passwordInput.focus();
             }
         }
 
@@ -1047,7 +1116,8 @@
             if (adminPassword === null) return;
             if (adminPassword.trim() === ADMIN_PASSWORD) {
                 currentUser.isAdmin = true;
-                await saveUserToCloud(currentUser);
+                // 保存管理员状态
+                await saveUserInfo({ name: currentUser.name, oldName: currentUser.name, isLoggedIn: true, isAdmin: true });
                 updateUserUI();
                 alert('管理员验证成功！');
                 openUserModal();
@@ -1066,22 +1136,20 @@
                 return;
             }
             const oldName = currentUser.name;
-            currentUser.name = newName;
-            const result = await saveUserToCloud({ ...currentUser, oldName });
-            if (result && result.success === false) {
-                currentUser.name = oldName; // 恢复旧名字
-                alert(result.error || '用户名已被使用，请更换');
-                return;
+            const result = await saveUserInfo({ name: newName, oldName, isLoggedIn: true, isAdmin: currentUser.isAdmin });
+            if (result.success) {
+                currentUser.name = newName;
+                currentUser.isAdmin = result.user.isAdmin; // 可能更新
+                updateUserUI();
+                closeUserModal();
+            } else {
+                alert(result.error || '保存失败');
             }
-            updateUserUI();
-            closeUserModal();
         }
 
         // ========== 退出登录 ==========
-        async function logout() {
-            currentUser.isLoggedIn = false;
-            currentUser.isAdmin = false;
-            await saveUserToCloud(currentUser);
+        function logout() {
+            currentUser = { name: '', isLoggedIn: false, isAdmin: false };
             updateUserUI();
             closeUserModal();
         }
