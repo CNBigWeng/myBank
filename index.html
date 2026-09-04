@@ -881,7 +881,10 @@
         async function apiFetch(path, options = {}) {
             try {
                 const res = await fetch(API_BASE + path, options);
-                if (!res.ok) throw new Error('API error');
+                if (!res.ok) {
+                    const errorData = await res.json().catch(() => ({}));
+                    throw new Error(errorData.error || 'API error');
+                }
                 return await res.json();
             } catch (e) {
                 console.warn('API 调用失败，回退到 localStorage', e);
@@ -894,7 +897,6 @@
             if (apiData !== null) {
                 return apiData;
             }
-            // 回退
             const stored = localStorage.getItem('dxwb_news_data');
             return stored ? JSON.parse(stored) : [];
         }
@@ -929,10 +931,15 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(userData)
                 });
-                if (!res.ok) throw new Error('API user save failed');
+                if (!res.ok) {
+                    const errorData = await res.json().catch(() => ({}));
+                    throw new Error(errorData.error || '保存失败');
+                }
+                return await res.json();
             } catch (e) {
-                console.warn('API 用户保存失败，使用 localStorage', e);
+                console.warn('API 用户保存失败', e);
                 localStorage.setItem('dxwb_user_data', JSON.stringify(userData));
+                return { success: false, error: e.message };
             }
         }
 
@@ -1017,7 +1024,13 @@
                 currentUser.isLoggedIn = true;
                 currentUser.isAdmin = false;
                 currentUser.name = username;
-                await saveUserToCloud(currentUser);
+                const result = await saveUserToCloud(currentUser);
+                if (result && result.success === false) {
+                    errorMsg.textContent = result.error || '用户名已被使用，请更换';
+                    errorMsg.style.display = 'block';
+                    currentUser.isLoggedIn = false;
+                    return;
+                }
                 updateUserUI();
                 closeUserModal();
             } else {
@@ -1048,14 +1061,20 @@
             const nameInput = document.getElementById('editNameInput');
             if (!nameInput) return;
             const newName = nameInput.value.trim();
-            if (newName) {
-                currentUser.name = newName;
-                await saveUserToCloud(currentUser);
-                updateUserUI();
-                closeUserModal();
-            } else {
+            if (!newName) {
                 alert('名字不能为空');
+                return;
             }
+            const oldName = currentUser.name;
+            currentUser.name = newName;
+            const result = await saveUserToCloud({ ...currentUser, oldName });
+            if (result && result.success === false) {
+                currentUser.name = oldName; // 恢复旧名字
+                alert(result.error || '用户名已被使用，请更换');
+                return;
+            }
+            updateUserUI();
+            closeUserModal();
         }
 
         // ========== 退出登录 ==========
