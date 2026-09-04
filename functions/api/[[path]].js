@@ -61,29 +61,24 @@ export async function onRequest(context) {
     }
 
     // ========== 用户路由（支持多用户） ==========
-    if (path === 'user' && request.method === 'GET') {
-      const current = await env.USER_DATA.get('current_user');
-      return new Response(current || '{}', { headers: corsHeaders });
-    }
-
     if (path === 'user' && request.method === 'POST') {
-      const user = await request.json();
-      // 保存当前用户
-      await env.USER_DATA.put('current_user', JSON.stringify(user));
-      // 同时保存到用户列表（使用用户名作为键的一部分）
-      if (user.name && user.isLoggedIn) {
+    const user = await request.json();
+    // 保存当前用户
+    await env.USER_DATA.put('current_user', JSON.stringify(user));
+    // 同时保存到用户列表
+    if (user.name && user.isLoggedIn) {
         const safeName = user.name.replace(/[^a-zA-Z0-9_\-\u4e00-\u9fa5]/g, '_');
         const userKey = `user_${safeName}`;
         await env.USER_DATA.put(userKey, JSON.stringify(user));
-        // 更新用户名索引
+        // 更新索引
         let index = await env.USER_DATA.get('users_index');
         let users = index ? JSON.parse(index) : [];
         if (!users.includes(user.name)) {
-          users.push(user.name);
-          await env.USER_DATA.put('users_index', JSON.stringify(users));
+            users.push(user.name);
+            await env.USER_DATA.put('users_index', JSON.stringify(users));
         }
-      }
-      return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+    }
+    return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
     }
 
     // 获取所有用户列表
