@@ -811,7 +811,7 @@
 
         // ========== 状态 ==========
         let newsData = [];
-        let currentUser = { name: '', isLoggedIn: false, isAdmin: false };
+        let currentUser = { name: '', isLoggedIn: false, isAdmin: false, password: '' };
         let currentSearch = '';
         let isDarkTheme = false;
         let currentOpenedNewsId = null;
@@ -871,10 +871,20 @@
         }
         function loadLocalUser() {
             const stored = localStorage.getItem('dxwb_local_user');
-            return stored ? JSON.parse(stored) : { name: '', isLoggedIn: false, isAdmin: false };
+            return stored ? JSON.parse(stored) : { name: '', isLoggedIn: false, isAdmin: false, password: '' };
         }
         function clearLocalUser() {
             localStorage.removeItem('dxwb_local_user');
+        }
+
+        // ========== 构建带身份验证的请求头 ==========
+        function getAuthHeaders() {
+            const headers = { 'Content-Type': 'application/json' };
+            if (currentUser.isLoggedIn && currentUser.name && currentUser.password) {
+                headers['x-user-name'] = currentUser.name;
+                headers['x-auth-token'] = currentUser.password;
+            }
+            return headers;
         }
 
         // ========== 云端 API ==========
@@ -891,7 +901,7 @@
             try {
                 await fetch(API_BASE + '/news', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: getAuthHeaders(),
                     body: JSON.stringify(newsArray)
                 });
             } catch (e) {
@@ -911,7 +921,7 @@
         async function updateUserName(oldName, newName, isAdmin) {
             const res = await fetch(API_BASE + '/user', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ name: newName, oldName, isLoggedIn: true, isAdmin })
             });
             return await res.json();
@@ -920,7 +930,7 @@
         async function changeUserPassword(name, oldPassword, newPassword) {
             const res = await fetch(API_BASE + '/user/change-password', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: getAuthHeaders(),
                 body: JSON.stringify({ name, oldPassword, newPassword })
             });
             return await res.json();
@@ -1017,6 +1027,8 @@
             }
             const result = await changeUserPassword(currentUser.name, oldPwd, newPwd);
             if (result.success) {
+                currentUser.password = newPwd; // 更新本地密码
+                saveLocalUser(currentUser);
                 alert('密码修改成功');
                 openUserModal();
             } else {
@@ -1039,7 +1051,12 @@
             }
             const result = await loginUser(username, password);
             if (result.success) {
-                currentUser = { name: result.user.name, isLoggedIn: true, isAdmin: result.user.isAdmin || false };
+                currentUser = {
+                    name: result.user.name,
+                    isLoggedIn: true,
+                    isAdmin: result.user.isAdmin || false,
+                    password: password // 保存密码用于后续请求验证
+                };
                 saveLocalUser(currentUser);
                 updateUserUI();
                 closeUserModal();
@@ -1088,7 +1105,7 @@
 
         // ========== 退出登录 ==========
         function logout() {
-            currentUser = { name: '', isLoggedIn: false, isAdmin: false };
+            currentUser = { name: '', isLoggedIn: false, isAdmin: false, password: '' };
             clearLocalUser();
             updateUserUI();
             closeUserModal();
