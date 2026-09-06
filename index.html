@@ -55,7 +55,6 @@
             min-height: 100vh;
         }
 
-        /* 顶部导航 */
         .navbar {
             position: sticky;
             top: 0;
@@ -239,7 +238,6 @@
             margin-left: 4px;
         }
 
-        /* 主内容区 */
         .main-content {
             max-width: 900px;
             margin: 0 auto;
@@ -266,7 +264,6 @@
             font-weight: 400;
         }
 
-        /* 新闻网格：单列居中 */
         .news-grid {
             display: grid;
             grid-template-columns: 1fr;
@@ -276,7 +273,6 @@
             width: 100%;
         }
 
-        /* 新闻卡片 */
         .news-card {
             background: var(--card-bg);
             border-radius: var(--radius);
@@ -389,7 +385,6 @@
             background: var(--text-muted);
         }
 
-        /* 空状态 */
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -407,7 +402,6 @@
             color: var(--text-secondary);
         }
 
-        /* 弹窗（新闻详情） */
         .modal-overlay {
             position: fixed;
             inset: 0;
@@ -514,7 +508,6 @@
             margin-bottom: 14px;
         }
 
-        /* 删除按钮 */
         .delete-btn {
             background: #c0392b;
             color: #fff;
@@ -532,7 +525,6 @@
             background: #a93226;
         }
 
-        /* 用户弹窗 */
         .user-modal .modal {
             max-width: 400px;
         }
@@ -624,7 +616,6 @@
             color: var(--text);
         }
 
-        /* 管理员验证按钮 */
         .admin-verify-btn {
             background: none;
             border: 1px dashed var(--text-muted);
@@ -641,12 +632,10 @@
             color: var(--primary);
         }
 
-        /* 发布新闻弹窗 */
         .news-modal .modal {
             max-width: 600px;
         }
 
-        /* 响应式 */
         @media (max-width: 768px) {
             .navbar { padding: 0 12px; height: 56px; gap: 8px; }
             .logo { font-size: 17px; }
@@ -672,7 +661,6 @@
             .news-grid { gap: 10px; }
         }
 
-        /* 回到顶部 */
         .back-to-top {
             position: fixed;
             bottom: 24px;
@@ -816,10 +804,10 @@
 
     <script>
         // ========== 配置 ==========
-        const DEFAULT_PASSWORD = 'dxwbnbfwqb';   // 默认初始密码，仅用于后端创建新用户时比对
-        const ADMIN_PASSWORD = '114514ab';       // 管理员验证密码
-        const COOLDOWN_MINUTES = 10;             // 普通用户发布冷却（分钟）
-        const API_BASE = '/api';                 // Cloudflare Workers API 基础路径
+        const DEFAULT_PASSWORD = 'dxwbnbfwqb';
+        const ADMIN_PASSWORD = '114514ab';
+        const COOLDOWN_MINUTES = 10;
+        const API_BASE = '/api';
 
         // ========== 状态 ==========
         let newsData = [];
@@ -877,111 +865,65 @@
             };
         }
 
-        // ========== 云端 API 函数 ==========
-        async function apiFetch(path, options = {}) {
-            try {
-                const res = await fetch(API_BASE + path, options);
-                if (!res.ok) {
-                    const errorData = await res.json().catch(() => ({}));
-                    throw new Error(errorData.error || 'API error');
-                }
-                return await res.json();
-            } catch (e) {
-                console.warn('API 调用失败', e);
-                return null;
-            }
+        // ========== 本地用户管理 ==========
+        function saveLocalUser(user) {
+            localStorage.setItem('dxwb_local_user', JSON.stringify(user));
+        }
+        function loadLocalUser() {
+            const stored = localStorage.getItem('dxwb_local_user');
+            return stored ? JSON.parse(stored) : { name: '', isLoggedIn: false, isAdmin: false };
+        }
+        function clearLocalUser() {
+            localStorage.removeItem('dxwb_local_user');
         }
 
-        // 加载新闻
+        // ========== 云端 API ==========
         async function loadNewsFromCloud() {
-            const apiData = await apiFetch('/news');
-            if (apiData !== null) {
-                return apiData;
-            }
+            try {
+                const res = await fetch(API_BASE + '/news');
+                if (res.ok) return await res.json();
+            } catch (e) {}
             const stored = localStorage.getItem('dxwb_news_data');
             return stored ? JSON.parse(stored) : [];
         }
 
-        // 保存新闻（全量数组）
         async function saveNewsToCloud(newsArray) {
             try {
-                const res = await fetch(API_BASE + '/news', {
+                await fetch(API_BASE + '/news', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(newsArray)
                 });
-                if (!res.ok) throw new Error('API save failed');
             } catch (e) {
-                console.warn('API 保存失败，使用 localStorage', e);
                 localStorage.setItem('dxwb_news_data', JSON.stringify(newsArray));
             }
         }
 
-        // 加载当前用户（恢复会话）
-        async function loadUserFromCloud() {
-            const apiData = await apiFetch('/user');
-            if (apiData !== null) {
-                return apiData;
-            }
-            const stored = localStorage.getItem('dxwb_user_data');
-            return stored ? JSON.parse(stored) : { name: '', isLoggedIn: false, isAdmin: false };
-        }
-
-        // 登录请求
         async function loginUser(name, password) {
-            try {
-                const res = await fetch(API_BASE + '/user/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, password })
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || '登录失败');
-                }
-                return data;
-            } catch (e) {
-                console.error('登录失败', e);
-                return { success: false, error: e.message };
-            }
+            const res = await fetch(API_BASE + '/user/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, password })
+            });
+            return await res.json();
         }
 
-        // 保存用户信息（修改名字、管理员状态等，不修改密码）
-        async function saveUserInfo(userData) {
-            try {
-                const res = await fetch(API_BASE + '/user', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(userData)
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || '保存失败');
-                }
-                return data;
-            } catch (e) {
-                console.warn('保存用户信息失败', e);
-                return { success: false, error: e.message };
-            }
+        async function updateUserName(oldName, newName, isAdmin) {
+            const res = await fetch(API_BASE + '/user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: newName, oldName, isLoggedIn: true, isAdmin })
+            });
+            return await res.json();
         }
 
-        // 修改密码
         async function changeUserPassword(name, oldPassword, newPassword) {
-            try {
-                const res = await fetch(API_BASE + '/user/change-password', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, oldPassword, newPassword })
-                });
-                const data = await res.json();
-                if (!res.ok) {
-                    throw new Error(data.error || '修改失败');
-                }
-                return data;
-            } catch (e) {
-                console.error('修改密码失败', e);
-                return { success: false, error: e.message };
-            }
+            const res = await fetch(API_BASE + '/user/change-password', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name, oldPassword, newPassword })
+            });
+            return await res.json();
         }
 
         // ========== 用户界面更新 ==========
@@ -1046,7 +988,7 @@
             if (event.target === userModalOverlay) closeUserModal();
         }
 
-        // ========== 打开修改密码弹窗 ==========
+        // ========== 修改密码弹窗 ==========
         function openChangePasswordModal() {
             userModalContent.innerHTML = `
                 <h3>修改密码</h3>
@@ -1062,7 +1004,6 @@
                 <button class="btn btn-primary btn-block" onclick="submitPasswordChange()">确认修改</button>
                 <button class="logout-btn" onclick="openUserModal()">返回</button>
             `;
-            // 弹窗保持打开
         }
 
         async function submitPasswordChange() {
@@ -1077,7 +1018,7 @@
             const result = await changeUserPassword(currentUser.name, oldPwd, newPwd);
             if (result.success) {
                 alert('密码修改成功');
-                openUserModal(); // 返回用户面板
+                openUserModal();
             } else {
                 errorMsg.textContent = result.error || '修改失败';
                 errorMsg.style.display = 'block';
@@ -1089,19 +1030,17 @@
             const usernameInput = document.getElementById('loginUsernameInput');
             const passwordInput = document.getElementById('loginPasswordInput');
             const errorMsg = document.getElementById('loginError');
-            if (!usernameInput || !passwordInput) return;
             const username = usernameInput.value.trim();
             const password = passwordInput.value.trim();
-
             if (!username || !password) {
                 errorMsg.textContent = '用户名和密码不能为空';
                 errorMsg.style.display = 'block';
                 return;
             }
-
             const result = await loginUser(username, password);
             if (result.success) {
                 currentUser = { name: result.user.name, isLoggedIn: true, isAdmin: result.user.isAdmin || false };
+                saveLocalUser(currentUser);
                 updateUserUI();
                 closeUserModal();
             } else {
@@ -1116,8 +1055,8 @@
             if (adminPassword === null) return;
             if (adminPassword.trim() === ADMIN_PASSWORD) {
                 currentUser.isAdmin = true;
-                // 保存管理员状态
-                await saveUserInfo({ name: currentUser.name, oldName: currentUser.name, isLoggedIn: true, isAdmin: true });
+                saveLocalUser(currentUser);
+                await updateUserName(currentUser.name, currentUser.name, true);
                 updateUserUI();
                 alert('管理员验证成功！');
                 openUserModal();
@@ -1129,17 +1068,17 @@
         // ========== 保存用户名 ==========
         async function saveUserName() {
             const nameInput = document.getElementById('editNameInput');
-            if (!nameInput) return;
             const newName = nameInput.value.trim();
             if (!newName) {
                 alert('名字不能为空');
                 return;
             }
             const oldName = currentUser.name;
-            const result = await saveUserInfo({ name: newName, oldName, isLoggedIn: true, isAdmin: currentUser.isAdmin });
+            const result = await updateUserName(oldName, newName, currentUser.isAdmin);
             if (result.success) {
                 currentUser.name = newName;
-                currentUser.isAdmin = result.user.isAdmin; // 可能更新
+                currentUser.isAdmin = result.user.isAdmin;
+                saveLocalUser(currentUser);
                 updateUserUI();
                 closeUserModal();
             } else {
@@ -1150,6 +1089,7 @@
         // ========== 退出登录 ==========
         function logout() {
             currentUser = { name: '', isLoggedIn: false, isAdmin: false };
+            clearLocalUser();
             updateUserUI();
             closeUserModal();
         }
@@ -1178,7 +1118,6 @@
         async function submitNews(event) {
             event.preventDefault();
 
-            // 冷却检查（普通用户）
             if (!currentUser.isAdmin) {
                 const lastPublishTime = parseInt(localStorage.getItem('dxwb_last_publish_time') || '0');
                 const now = Date.now();
@@ -1296,7 +1235,7 @@
             if (event.target === modalOverlay) closeModal();
         }
 
-        // ========== 删除新闻（仅管理员） ==========
+        // ========== 删除新闻 ==========
         async function deleteCurrentNews() {
             if (!currentUser.isAdmin) {
                 alert('只有管理员才能删除新闻');
@@ -1356,7 +1295,6 @@
 
         // ========== 初始化 ==========
         async function initApp() {
-            // 恢复主题
             const savedTheme = localStorage.getItem('news-theme');
             if (savedTheme === 'dark') {
                 isDarkTheme = true;
@@ -1364,14 +1302,15 @@
                 themeToggle.textContent = '☀️';
             }
 
-            // 加载数据
+            // 从本地恢复用户登录状态
+            currentUser = loadLocalUser();
+
+            // 加载新闻
             newsData = await loadNewsFromCloud();
-            currentUser = await loadUserFromCloud();
 
             updateUserUI();
             renderNews();
 
-            // 事件监听
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
                     if (modalOverlay.style.display === 'flex') closeModal();
@@ -1389,7 +1328,6 @@
             });
         }
 
-        // 启动
         document.addEventListener('DOMContentLoaded', initApp);
     </script>
 </body>
