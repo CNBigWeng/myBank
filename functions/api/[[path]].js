@@ -7,7 +7,7 @@ export async function onRequest(context) {
   const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Headers': 'Content-Type, x-user-name, x-auth-token',
     'Content-Type': 'application/json'
   };
 
@@ -16,6 +16,27 @@ export async function onRequest(context) {
   }
 
   try {
+    // ========== 授权辅助函数 ==========
+    async function authorizeRequest(request) {
+      const username = request.headers.get('x-user-name');
+      const token = request.headers.get('x-auth-token');
+      if (!username || !token) return null;
+
+      const key = `user_${safeName(username)}`;
+      const userData = await env.USER_DATA.get(key);
+      if (!userData) return null;
+
+      const user = JSON.parse(userData);
+      if (user.password === token) {
+        return user;
+      }
+      return null;
+    }
+
+    function safeName(name) {
+      return name.replace(/[^a-zA-Z0-9_\-\u4e00-\u9fa5]/g, '_');
+    }
+
     // ========== 新闻路由 ==========
     if (path === 'news' && request.method === 'GET') {
       const list = await env.NEWS_DATA.list();
@@ -29,6 +50,12 @@ export async function onRequest(context) {
     }
 
     if (path === 'news' && request.method === 'POST') {
+      // 需要授权
+      const user = await authorizeRequest(request);
+      if (!user) {
+        return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: corsHeaders });
+      }
+
       const body = await request.json();
       if (Array.isArray(body)) {
         const existingKeys = await env.NEWS_DATA.list();
@@ -51,25 +78,23 @@ export async function onRequest(context) {
     }
 
     if (path.startsWith('news/') && request.method === 'DELETE') {
+      // 需要授权且是管理员
+      const user = await authorizeRequest(request);
+      if (!user) {
+        return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: corsHeaders });
+      }
+      if (!user.isAdmin) {
+        return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: corsHeaders });
+      }
+
       const id = path.split('/')[1];
       if (!id) return new Response(JSON.stringify({ error: 'Missing id' }), { status: 400, headers: corsHeaders });
       await env.NEWS_DATA.delete(id);
       return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
     }
 
-    // ========== 用户辅助函数 ==========
-    function safeName(name) {
-      return name.replace(/[^a-zA-Z0-9_\-\u4e00-\u9fa5]/g, '_');
-    }
-    async function getUsersIndex() {
-      const index = await env.USER_DATA.get('users_index');
-      return index ? JSON.parse(index) : [];
-    }
-    async function saveUsersIndex(indexArray) {
-      await env.USER_DATA.put('users_index', JSON.stringify(indexArray));
-    }
-
-    // ========== 用户登录 ==========
+    // ========== 用户路由 ==========
+    // 登录（公开）
     if (path === 'user/login' && request.method === 'POST') {
       const { name, password } = await request.json();
       if (!name || !password) {
@@ -105,11 +130,16 @@ export async function onRequest(context) {
       }
     }
 
-    // ========== 修改用户名（同时更新用户记录，不修改密码） ==========
+    // 修改用户名（需授权）
     if (path === 'user' && request.method === 'POST') {
-      const user = await request.json();
-      const oldName = user.oldName || null;
-      const newName = user.name;
+      const user = await authorizeRequest(request);
+      if (!user) {
+        return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: corsHeaders });
+      }
+
+      const body = await request.json();
+      const oldName = body.oldName || user.name;
+      const newName = body.name;
       if (!newName) {
         return new Response(JSON.stringify({ error: '用户名不能为空' }), { status: 400, headers: corsHeaders });
       }
@@ -123,22 +153,18 @@ export async function onRequest(context) {
         return new Response(JSON.stringify({ success: false, error: '用户名已被使用，请更换' }), { status: 409, headers: corsHeaders });
       }
 
-      let originalUser = null;
-      if (oldName) {
-        const oldKey = `user_${safeName(oldName)}`;
-        const oldData = await env.USER_DATA.get(oldKey);
-        if (oldData) originalUser = JSON.parse(oldData);
-      }
-
+      const oldKey = `user_${safeName(oldName)}`;
+      const oldData = await env.USER_DATA.get(oldKey);
+      const originalUser = oldData ? JSON.parse(oldData) : user;
       const updatedUser = {
         ...originalUser,
-        ...user,
+        ...body,
         name: newName
       };
-      if (!updatedUser.password) updatedUser.password = 'dxwbnbfwqb';
+      if (!updatedUser.password) updatedUser.password = originalUser.password || 'dxwbnbfwqb';
 
-      if (oldName && oldName.toLowerCase() !== newName.toLowerCase()) {
-        await env.USER_DATA.delete(`user_${safeName(oldName)}`);
+      if (oldName.toLowerCase() !== newName.toLowerCase()) {
+        await env.USER_DATA.delete(oldKey);
         const newIndex = existingNames.filter(name => name.toLowerCase() !== oldName.toLowerCase());
         await saveUsersIndex(newIndex);
       }
@@ -155,36 +181,47 @@ export async function onRequest(context) {
       return new Response(JSON.stringify({ success: true, user: { name: newName, isAdmin: updatedUser.isAdmin } }), { headers: corsHeaders });
     }
 
-    // ========== 修改密码 ==========
+    // 修改密码（需授权）
     if (path === 'user/change-password' && request.method === 'POST') {
-      const { name, oldPassword, newPassword } = await request.json();
-      if (!name || !oldPassword || !newPassword) {
+      const user = await authorizeRequest(request);
+      if (!user) {
+        return new Response(JSON.stringify({ error: '未授权' }), { status: 401, headers: corsHeaders });
+      }
+
+      const { oldPassword, newPassword } = await request.json();
+      if (!oldPassword || !newPassword) {
         return new Response(JSON.stringify({ error: '缺少必要参数' }), { status: 400, headers: corsHeaders });
       }
-      const key = `user_${safeName(name)}`;
+
+      const key = `user_${safeName(user.name)}`;
       const userData = await env.USER_DATA.get(key);
       if (!userData) {
         return new Response(JSON.stringify({ success: false, error: '用户不存在' }), { status: 404, headers: corsHeaders });
       }
-      const user = JSON.parse(userData);
-      if (user.password !== oldPassword) {
+      const storedUser = JSON.parse(userData);
+      if (storedUser.password !== oldPassword) {
         return new Response(JSON.stringify({ success: false, error: '旧密码错误' }), { status: 401, headers: corsHeaders });
       }
-      user.password = newPassword;
-      await env.USER_DATA.put(key, JSON.stringify(user));
+      storedUser.password = newPassword;
+      await env.USER_DATA.put(key, JSON.stringify(storedUser));
       return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
     }
 
-    // ========== 获取所有用户（管理后台） ==========
+    // 获取所有用户（管理后台，需管理员授权）
     if (path === 'users' && request.method === 'GET') {
+      const user = await authorizeRequest(request);
+      if (!user || !user.isAdmin) {
+        return new Response(JSON.stringify({ error: '需要管理员权限' }), { status: 403, headers: corsHeaders });
+      }
+
       const index = await getUsersIndex();
       const users = [];
       for (const name of index) {
         const key = `user_${safeName(name)}`;
         const data = await env.USER_DATA.get(key);
         if (data) {
-          const user = JSON.parse(data);
-          users.push({ name: user.name, isAdmin: user.isAdmin, isLoggedIn: user.isLoggedIn || false });
+          const u = JSON.parse(data);
+          users.push({ name: u.name, isAdmin: u.isAdmin, isLoggedIn: u.isLoggedIn || false });
         }
       }
       return new Response(JSON.stringify(users), { headers: corsHeaders });
