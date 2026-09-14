@@ -569,6 +569,11 @@
         .form-group textarea:focus {
             border-color: var(--primary);
         }
+        .form-group input[type="file"] {
+            padding: 8px 0;
+            border: none;
+            background: transparent;
+        }
         .btn {
             padding: 10px 18px;
             border-radius: var(--radius-sm);
@@ -815,6 +820,7 @@
         let currentSearch = '';
         let isDarkTheme = false;
         let currentOpenedNewsId = null;
+        let isSubmitting = false;
 
         // ========== DOM 元素 ==========
         const newsGrid = document.getElementById('newsGrid');
@@ -865,7 +871,7 @@
             };
         }
 
-        // ========== 图片压缩函数 ==========
+        // ========== 图片压缩 ==========
         function compressImage(file, maxWidth = 800, quality = 0.7) {
             return new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -909,7 +915,7 @@
             localStorage.removeItem('dxwb_local_user');
         }
 
-        // ========== 构建带身份验证的请求头 ==========
+        // ========== 带身份验证的请求头 ==========
         function getAuthHeaders() {
             const headers = { 'Content-Type': 'application/json' };
             if (currentUser.isLoggedIn && currentUser.name && currentUser.password) {
@@ -929,15 +935,30 @@
             return stored ? JSON.parse(stored) : [];
         }
 
-        async function saveNewsToCloud(newsArray) {
+        async function addNewsToCloud(newsItem) {
             try {
-                await fetch(API_BASE + '/news', {
+                const res = await fetch(API_BASE + '/news', {
                     method: 'POST',
                     headers: getAuthHeaders(),
-                    body: JSON.stringify(newsArray)
+                    body: JSON.stringify(newsItem)
                 });
+                if (!res.ok) throw new Error('保存失败');
             } catch (e) {
-                localStorage.setItem('dxwb_news_data', JSON.stringify(newsArray));
+                console.warn('API 保存失败，使用 localStorage', e);
+                localStorage.setItem('dxwb_news_data', JSON.stringify(newsData));
+            }
+        }
+
+        async function deleteNewsFromCloud(id) {
+            try {
+                const res = await fetch(API_BASE + '/news/' + id, {
+                    method: 'DELETE',
+                    headers: getAuthHeaders()
+                });
+                if (!res.ok) throw new Error('删除失败');
+            } catch (e) {
+                console.warn('API 删除失败，使用 localStorage', e);
+                localStorage.setItem('dxwb_news_data', JSON.stringify(newsData));
             }
         }
 
@@ -968,7 +989,7 @@
             return await res.json();
         }
 
-        // ========== 用户界面更新 ==========
+        // ========== 用户界面 ==========
         function updateUserUI() {
             if (currentUser.isLoggedIn) {
                 userNameDisplay.textContent = currentUser.name || '同学';
@@ -981,7 +1002,6 @@
             }
         }
 
-        // ========== 打开用户弹窗 ==========
         function openUserModal() {
             if (currentUser.isLoggedIn) {
                 const adminStatus = currentUser.isAdmin ? '（管理员）' : '';
@@ -1030,7 +1050,6 @@
             if (event.target === userModalOverlay) closeUserModal();
         }
 
-        // ========== 修改密码弹窗 ==========
         function openChangePasswordModal() {
             userModalContent.innerHTML = `
                 <h3>修改密码</h3>
@@ -1059,7 +1078,7 @@
             }
             const result = await changeUserPassword(currentUser.name, oldPwd, newPwd);
             if (result.success) {
-                currentUser.password = newPwd; // 更新本地密码
+                currentUser.password = newPwd;
                 saveLocalUser(currentUser);
                 alert('密码修改成功');
                 openUserModal();
@@ -1069,7 +1088,6 @@
             }
         }
 
-        // ========== 登录 ==========
         async function login() {
             const usernameInput = document.getElementById('loginUsernameInput');
             const passwordInput = document.getElementById('loginPasswordInput');
@@ -1087,7 +1105,7 @@
                     name: result.user.name,
                     isLoggedIn: true,
                     isAdmin: result.user.isAdmin || false,
-                    password: password // 保存密码用于后续请求验证
+                    password: password
                 };
                 saveLocalUser(currentUser);
                 updateUserUI();
@@ -1098,7 +1116,6 @@
             }
         }
 
-        // ========== 管理员验证 ==========
         async function verifyAdmin() {
             const adminPassword = prompt('请输入管理员密码：');
             if (adminPassword === null) return;
@@ -1114,7 +1131,6 @@
             }
         }
 
-        // ========== 保存用户名 ==========
         async function saveUserName() {
             const nameInput = document.getElementById('editNameInput');
             const newName = nameInput.value.trim();
@@ -1135,7 +1151,6 @@
             }
         }
 
-        // ========== 退出登录 ==========
         function logout() {
             currentUser = { name: '', isLoggedIn: false, isAdmin: false, password: '' };
             clearLocalUser();
@@ -1143,7 +1158,7 @@
             closeUserModal();
         }
 
-        // ========== 新闻发布弹窗 ==========
+        // ========== 发布新闻 ==========
         function openNewsUploadModal() {
             if (!currentUser.isLoggedIn) {
                 alert('请先登录后再发布新闻');
@@ -1154,75 +1169,82 @@
             document.body.style.overflow = 'hidden';
             document.getElementById('newsForm').reset();
             document.getElementById('newsCategory').value = '班级活动';
-            // 清空文件输入
             document.getElementById('newsImageFile').value = '';
         }
+
         function closeNewsModal() {
             newsModalOverlay.style.display = 'none';
             document.body.style.overflow = '';
         }
+
         function closeNewsModalOutside(event) {
             if (event.target === newsModalOverlay) closeNewsModal();
         }
 
-        // ========== 提交新闻 ==========
         async function submitNews(event) {
             event.preventDefault();
+            if (isSubmitting) return;
+            isSubmitting = true;
 
-            if (!currentUser.isAdmin) {
-                const lastPublishTime = parseInt(localStorage.getItem('dxwb_last_publish_time') || '0');
-                const now = Date.now();
-                const cooldown = COOLDOWN_MINUTES * 60 * 1000;
-                if (now - lastPublishTime < cooldown) {
-                    const remainMinutes = Math.ceil((cooldown - (now - lastPublishTime)) / 60000);
-                    alert(`发布冷却中，请${remainMinutes}分钟后再试`);
+            try {
+                if (!currentUser.isAdmin) {
+                    const lastPublishTime = parseInt(localStorage.getItem('dxwb_last_publish_time') || '0');
+                    const now = Date.now();
+                    const cooldown = COOLDOWN_MINUTES * 60 * 1000;
+                    if (now - lastPublishTime < cooldown) {
+                        const remainMinutes = Math.ceil((cooldown - (now - lastPublishTime)) / 60000);
+                        alert(`发布冷却中，请${remainMinutes}分钟后再试`);
+                        return;
+                    }
+                }
+
+                const title = document.getElementById('newsTitle').value.trim();
+                const summary = document.getElementById('newsSummary').value.trim();
+                const content = document.getElementById('newsContent').value.trim();
+                const category = document.getElementById('newsCategory').value;
+                const source = document.getElementById('newsSource').value.trim() || (currentUser.name || (currentUser.isAdmin ? '管理员' : '匿名投稿'));
+
+                if (!title || !summary || !content) {
+                    alert('标题、摘要和正文为必填项');
                     return;
                 }
-            }
 
-            const title = document.getElementById('newsTitle').value.trim();
-            const summary = document.getElementById('newsSummary').value.trim();
-            const content = document.getElementById('newsContent').value.trim();
-            const category = document.getElementById('newsCategory').value;
-            const source = document.getElementById('newsSource').value.trim() || (currentUser.name || (currentUser.isAdmin ? '管理员' : '匿名投稿'));
-            
-            // 处理图片：优先使用用户上传的图片，否则使用默认占位图
-            let image = 'https://picsum.photos/seed/default/600/400';
-            const fileInput = document.getElementById('newsImageFile');
-            if (fileInput.files && fileInput.files[0]) {
-                try {
-                    image = await compressImage(fileInput.files[0]);
-                } catch (e) {
-                    alert('图片处理失败，将使用默认图片');
+                let image = 'https://picsum.photos/seed/default/600/400';
+                const fileInput = document.getElementById('newsImageFile');
+                if (fileInput.files && fileInput.files[0]) {
+                    try {
+                        image = await compressImage(fileInput.files[0]);
+                    } catch (e) {
+                        console.warn('图片处理失败，使用默认图片', e);
+                    }
                 }
+
+                const newNews = {
+                    id: Date.now().toString(),
+                    title,
+                    summary,
+                    content,
+                    category,
+                    source,
+                    time: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'),
+                    image,
+                    views: 0
+                };
+
+                // 先更新本地并关闭弹窗
+                newsData.unshift(newNews);
+                renderNews();
+                closeNewsModal();
+
+                if (!currentUser.isAdmin) {
+                    localStorage.setItem('dxwb_last_publish_time', Date.now().toString());
+                }
+
+                // 后台异步保存
+                await addNewsToCloud(newNews);
+            } finally {
+                isSubmitting = false;
             }
-
-            if (!title || !summary || !content) {
-                alert('标题、摘要和正文为必填项');
-                return;
-            }
-
-            const newNews = {
-                id: Date.now().toString(),
-                title,
-                summary,
-                content,
-                category,
-                source,
-                time: new Date().toLocaleString('zh-CN', { hour12: false }).replace(/\//g, '-'),
-                image,
-                views: 0
-            };
-
-            newsData.unshift(newNews);
-            await saveNewsToCloud(newsData);
-
-            if (!currentUser.isAdmin) {
-                localStorage.setItem('dxwb_last_publish_time', Date.now().toString());
-            }
-
-            renderNews();
-            closeNewsModal();
         }
 
         // ========== 渲染新闻 ==========
@@ -1270,7 +1292,7 @@
             `).join('');
         }
 
-        // ========== 新闻详情弹窗 ==========
+        // ========== 新闻详情 ==========
         function openModal(id) {
             const item = newsData.find(n => n.id === id);
             if (!item) return;
@@ -1281,22 +1303,21 @@
             modalTitle.textContent = item.title;
             modalMeta.textContent = `${item.source} · ${item.time} · ${formatViews(item.views)}`;
             modalBody.innerHTML = item.content.split('\n').map(p => `<p>${p}</p>`).join('');
-
             deleteNewsBtn.style.display = currentUser.isAdmin ? 'inline-block' : 'none';
-
             modalOverlay.style.display = 'flex';
             document.body.style.overflow = 'hidden';
         }
+
         function closeModal() {
             modalOverlay.style.display = 'none';
             document.body.style.overflow = '';
             currentOpenedNewsId = null;
         }
+
         function closeModalOutside(event) {
             if (event.target === modalOverlay) closeModal();
         }
 
-        // ========== 删除新闻 ==========
         async function deleteCurrentNews() {
             if (!currentUser.isAdmin) {
                 alert('只有管理员才能删除新闻');
@@ -1305,21 +1326,23 @@
             if (!currentOpenedNewsId) return;
             if (confirm('确定要删除这条新闻吗？此操作不可恢复。')) {
                 newsData = newsData.filter(item => item.id !== currentOpenedNewsId);
-                await saveNewsToCloud(newsData);
                 renderNews();
                 closeModal();
+                await deleteNewsFromCloud(currentOpenedNewsId);
             }
         }
 
-        // ========== 搜索功能 ==========
+        // ========== 搜索 ==========
         const debouncedSearch = debounce((value) => {
             currentSearch = value;
             searchClear.classList.toggle('visible', value.length > 0);
             renderNews();
         }, 300);
+
         searchInput.addEventListener('input', (e) => {
             debouncedSearch(e.target.value);
         });
+
         function clearSearch() {
             searchInput.value = '';
             currentSearch = '';
@@ -1328,7 +1351,7 @@
             searchInput.focus();
         }
 
-        // ========== 主题切换 ==========
+        // ========== 主题 ==========
         function toggleTheme() {
             isDarkTheme = !isDarkTheme;
             document.documentElement.setAttribute('data-theme', isDarkTheme ? 'dark' : 'light');
@@ -1336,7 +1359,7 @@
             localStorage.setItem('news-theme', isDarkTheme ? 'dark' : 'light');
         }
 
-        // ========== 刷新功能 ==========
+        // ========== 刷新 ==========
         async function refreshNews() {
             newsData = await loadNewsFromCloud();
             renderNews();
@@ -1350,6 +1373,7 @@
             renderNews();
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
+
         function scrollToTop() {
             window.scrollTo({ top: 0, behavior: 'smooth' });
         }
@@ -1363,10 +1387,7 @@
                 themeToggle.textContent = '☀️';
             }
 
-            // 从本地恢复用户登录状态
             currentUser = loadLocalUser();
-
-            // 加载新闻
             newsData = await loadNewsFromCloud();
 
             updateUserUI();
