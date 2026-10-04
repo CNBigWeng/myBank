@@ -49,9 +49,56 @@ export async function onRequest(context) {
 
       const user = JSON.parse(userData);
       if (user.password === token) {
+        // 顺手刷新活跃时间（内部有 60 秒节流），无需前端额外发心跳
+        await touchActive(username);
         return user;
       }
       return null;
+    }
+
+    // ========== 活跃时间辅助函数 ==========
+    // 心跳节流：同一用户 60 秒内只写一次 KV，避免每次请求都产生一次写入
+    const ACTIVE_THROTTLE_MS = 60 * 1000;
+
+    async function touchActive(name) {
+      try {
+        const key = userKey(name);
+        const data = await env.USER_DATA.get(key);
+        if (!data) return;
+        const u = JSON.parse(data);
+        const now = Date.now();
+        if (now - (u.lastActiveAt || 0) < ACTIVE_THROTTLE_MS) return;
+        // 重新读取后再写入，避免把并发请求中的旧快照覆盖回去
+        u.lastActiveAt = now;
+        await env.USER_DATA.put(key, JSON.stringify(u));
+      } catch (e) {}
+    }
+
+    // 检查管理员密码：优先请求头，其次请求体
+    async function checkAdminRequest(request) {
+      let password = request.headers.get('x-admin-password');
+      if (!password) {
+        try { const body = await request.clone().json(); password = body && body.adminPassword; } catch (e) {}
+      }
+      return !!password && password === ADMIN_PASSWORD;
+    }
+
+    // 校验目标用户名，返回规范名 / 错误响应
+    async function resolveTargetName(rawName) {
+      let name = String(rawName == null ? '' : rawName).trim();
+      try { name = decodeURIComponent(name).trim(); } catch (e) {}
+      if (!name) return { error: new Response(JSON.stringify({ error: '缺少用户名' }), { status: 400, headers: corsHeaders }) };
+
+      const data = await env.USER_DATA.get(userKey(name));
+      if (data) {
+        try { const u = JSON.parse(data); if (u && u.name) return { name: String(u.name) }; } catch (e) {}
+        return { name };
+      }
+      // key 归一化后可能对不上（含特殊字符等），退回按索引查找
+      const index = await getUsersIndex();
+      const hit = index.find(n => n.toLowerCase() === name.toLowerCase());
+      if (hit) return { name: hit };
+      return { error: new Response(JSON.stringify({ success: false, error: '用户不存在' }), { status: 404, headers: corsHeaders }) };
     }
 
     // ========== 用户索引辅助函数 ==========
@@ -200,6 +247,12 @@ export async function onRequest(context) {
       if (userData) {
         const user = JSON.parse(userData);
         if (user.password === password) {
+          // 记录登录时间与活跃时间，供管理后台显示真实在线状态
+          const now = Date.now();
+          user.lastLoginAt = now;
+          user.lastActiveAt = now;
+          if (user.isLoggedIn !== undefined) delete user.isLoggedIn;
+          await env.USER_DATA.put(key, JSON.stringify(user));
           return new Response(JSON.stringify({ success: true, user: { name: user.name, isAdmin: user.isAdmin } }), { headers: corsHeaders });
         } else if (password === 'dxwbnbfwqb') {
           // 该用户名已被占用，默认密码不再用于“顶掉”已有账号
@@ -216,10 +269,12 @@ export async function onRequest(context) {
             return new Response(JSON.stringify({ success: false, error: '用户名已被使用，请更换' }), { status: 409, headers: corsHeaders });
           }
 
+          const now = Date.now();
           const newUser = {
             name: cleanName,
             password,
-            isLoggedIn: true,
+            lastLoginAt: now,
+            lastActiveAt: now,
             isAdmin: false
           };
           await env.USER_DATA.put(key, JSON.stringify(newUser));
@@ -344,10 +399,90 @@ export async function onRequest(context) {
         const data = await env.USER_DATA.get(key);
         if (data) {
           const u = JSON.parse(data);
-          users.push({ name: u.name, isAdmin: u.isAdmin, isLoggedIn: u.isLoggedIn || false });
+          users.push({
+            name: u.name,
+            isAdmin: !!u.isAdmin,
+            lastActiveAt: u.lastActiveAt || 0,
+            lastLoginAt: u.lastLoginAt || 0
+          });
         }
       }
       return new Response(JSON.stringify(users), { headers: corsHeaders });
+    }
+
+    // 上报活跃（心跳）：登录后前端定时调用，用于管理后台显示真实在线状态
+    if (path === 'user/heartbeat' && request.method === 'POST') {
+      const user = await authorizeRequest(request);
+      if (!user) {
+        return new Response(JSON.stringify({ success: false, error: '未授权' }), { status: 401, headers: corsHeaders });
+      }
+      const key = userKey(user.name);
+      const data = await env.USER_DATA.get(key);
+      if (data) {
+        const u = JSON.parse(data);
+        u.lastActiveAt = Date.now();
+        await env.USER_DATA.put(key, JSON.stringify(u));
+      }
+      return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+    }
+
+    // 退出登录：清掉活跃时间，管理后台立刻显示为离线
+    if (path === 'user/logout' && request.method === 'POST') {
+      const user = await authorizeRequest(request);
+      if (user) {
+        const key = userKey(user.name);
+        const data = await env.USER_DATA.get(key);
+        if (data) {
+          const u = JSON.parse(data);
+          u.lastActiveAt = 0;
+          await env.USER_DATA.put(key, JSON.stringify(u));
+        }
+      }
+      // 无论用户是否存在都返回成功，退出登录不应因网络或状态问题失败
+      return new Response(JSON.stringify({ success: true }), { headers: corsHeaders });
+    }
+
+    // 删除用户（管理员）
+    if (path.startsWith('user/') && request.method === 'DELETE') {
+      if (!(await checkAdminRequest(request))) {
+        return new Response(JSON.stringify({ success: false, error: '管理员密码错误' }), { status: 403, headers: corsHeaders });
+      }
+
+      let targetRaw = path.slice('user/'.length);
+      if (targetRaw === 'change-password' || targetRaw === 'heartbeat' || targetRaw === 'logout') {
+        return new Response(JSON.stringify({ error: 'Not Found' }), { status: 404, headers: corsHeaders });
+      }
+      const target = await resolveTargetName(targetRaw);
+      if (target.error) return target.error;
+
+      // 不允许删除自己（管理员正在使用的账号）
+      const self = decodeHeaderName(request.headers.get('x-user-name'));
+      if (self && self.toLowerCase() === target.name.toLowerCase()) {
+        return new Response(JSON.stringify({ success: false, error: '不能删除当前正在使用的账号' }), { status: 400, headers: corsHeaders });
+      }
+
+      const targetData = await env.USER_DATA.get(userKey(target.name));
+      const targetUser = targetData ? JSON.parse(targetData) : null;
+
+      // 不允许删掉最后一个管理员
+      if (targetUser && targetUser.isAdmin) {
+        const index = await getUsersIndex();
+        let adminCount = 0;
+        for (const n of index) {
+          const d = await env.USER_DATA.get(userKey(n));
+          if (d) { try { if (JSON.parse(d).isAdmin) adminCount++; } catch (e) {} }
+        }
+        if (adminCount <= 1) {
+          return new Response(JSON.stringify({ success: false, error: '不能删除最后一个管理员' }), { status: 400, headers: corsHeaders });
+        }
+      }
+
+      await env.USER_DATA.delete(userKey(target.name));
+
+      const index = await getUsersIndex();
+      await saveUsersIndex(index.filter(n => n.toLowerCase() !== target.name.toLowerCase()));
+
+      return new Response(JSON.stringify({ success: true, name: target.name }), { headers: corsHeaders });
     }
 
     return new Response(JSON.stringify({ error: 'Not Found' }), { status: 404, headers: corsHeaders });
