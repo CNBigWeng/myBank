@@ -12,8 +12,15 @@
     .hidden { display: none; }
     input[type="password"] { padding: 8px; width: 250px; }
     button { padding: 8px 16px; background: #2d5a27; color: white; border: none; cursor: pointer; margin-right: 5px; }
+    button:disabled { background: #9aa89a; cursor: not-allowed; }
+    .btn-danger { background: #c0392b; padding: 4px 10px; font-size: 12px; }
+    .btn-danger:hover { background: #a93226; }
     .section { margin-top: 40px; }
     .error-msg { color: #c0392b; font-size: 13px; margin-top: 8px; display: none; }
+    .status-online { color: #2d5a27; font-weight: 600; }
+    .status-offline { color: #8a9a8a; }
+    .toolbar { margin-top: 12px; font-size: 13px; color: #666; }
+    .toolbar button { background: #f0f2f0; color: #333; border: 1px solid #ddd; font-size: 13px; padding: 6px 12px; }
   </style>
 </head>
 <body>
@@ -27,10 +34,14 @@
     <h2>用户列表</h2>
     <table id="usersTable">
       <thead>
-        <tr><th>用户名</th><th>是否管理员</th><th>登录状态</th><th>操作</th></tr>
+        <tr><th>用户名</th><th>是否管理员</th><th>状态</th><th>最后活跃</th><th>操作</th></tr>
       </thead>
       <tbody></tbody>
     </table>
+    <div class="toolbar">
+      <button onclick="loadData()">刷新数据</button>
+      <span id="userSummary"></span>
+    </div>
 
     <div class="section">
       <h2>新闻列表</h2>
@@ -45,6 +56,10 @@
   <script>
     // 管理员密码仅用于换取后端接口权限，实际校验由后端完成
     let adminPassword = '';
+    let users = [];
+
+    // 在线判定阈值：5 分钟内有活跃即视为在线（与前端心跳间隔一致）
+    const ONLINE_WINDOW_MS = 5 * 60 * 1000;
 
     function authHeaders() {
       const headers = { 'Content-Type': 'application/json' };
@@ -58,6 +73,25 @@
       box.style.display = message ? 'block' : 'none';
     }
 
+    // 相对时间描述
+    function describeTime(ts) {
+      if (!ts) return '从未';
+      const diff = Date.now() - ts;
+      if (diff < 0) return '刚刚';
+      const min = Math.floor(diff / 60000);
+      if (min < 1) return '刚刚';
+      if (min < 60) return min + ' 分钟前';
+      const hour = Math.floor(min / 60);
+      if (hour < 24) return hour + ' 小时前';
+      const day = Math.floor(hour / 24);
+      if (day < 30) return day + ' 天前';
+      return new Date(ts).toLocaleString('zh-CN', { hour12: false });
+    }
+
+    function isOnline(user) {
+      return !!user.lastActiveAt && (Date.now() - user.lastActiveAt) < ONLINE_WINDOW_MS;
+    }
+
     async function login() {
       const pwd = document.getElementById('adminPassword').value.trim();
       if (!pwd) {
@@ -67,7 +101,7 @@
 
       adminPassword = pwd;
       // 用 /api/users 做一次真实鉴权，密码错误会返回 403
-      let users;
+      let list;
       try {
         const res = await fetch('/api/users', { headers: authHeaders() });
         if (!res.ok) {
@@ -76,7 +110,7 @@
           adminPassword = '';
           return;
         }
-        users = await res.json();
+        list = await res.json();
       } catch (e) {
         showLoginError('网络请求失败：' + e.message);
         adminPassword = '';
@@ -86,23 +120,70 @@
       showLoginError('');
       document.getElementById('loginSection').classList.add('hidden');
       document.getElementById('dataSection').classList.remove('hidden');
-      renderUsers(users);
+      renderUsers(list);
       await loadNews();
     }
 
-    function renderUsers(users) {
-      const usersTbody = document.querySelector('#usersTable tbody');
-      usersTbody.innerHTML = '';
+    async function loadData() {
+      const res = await fetch('/api/users', { headers: authHeaders() });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || '加载用户列表失败');
+        return;
+      }
+      renderUsers(await res.json());
+      await loadNews();
+    }
+
+    function renderUsers(list) {
+      users = list || [];
+      const tbody = document.querySelector('#usersTable tbody');
+      tbody.innerHTML = '';
+
       users.forEach(user => {
+        const online = isOnline(user);
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${user.name || '未知'}</td>
+          <td>${escapeHtml(user.name || '未知')}</td>
           <td>${user.isAdmin ? '是' : '否'}</td>
-          <td>${user.isLoggedIn ? '在线' : '离线'}</td>
-          <td>（无操作）</td>
+          <td class="${online ? 'status-online' : 'status-offline'}">${online ? '● 在线' : '○ 离线'}</td>
+          <td>${describeTime(user.lastActiveAt)}</td>
+          <td></td>
         `;
-        usersTbody.appendChild(row);
+        // 用事件绑定而非内联 onclick，避免用户名里的引号破坏 HTML
+        const btn = document.createElement('button');
+        btn.className = 'btn-danger';
+        btn.textContent = '删除';
+        btn.addEventListener('click', () => deleteUser(user.name));
+        row.lastElementChild.appendChild(btn);
+        tbody.appendChild(row);
       });
+
+      const onlineCount = users.filter(isOnline).length;
+      document.getElementById('userSummary').textContent =
+        `共 ${users.length} 位用户，其中 ${onlineCount} 位近 5 分钟内活跃`;
+    }
+
+    // 表格内容来自用户投稿，转义后再插入，避免破坏页面结构
+    function escapeHtml(s) {
+      return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      }[c]));
+    }
+
+    async function deleteUser(name) {
+      if (!confirm('确定删除用户「' + name + '」吗？\\n\\n该用户的账号会被移除，其已发布的新闻不会被删除。此操作不可恢复。')) return;
+
+      const res = await fetch('/api/user/' + encodeURIComponent(name), {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        await loadData();
+      } else {
+        alert(data.error || '删除失败');
+      }
     }
 
     async function loadNews() {
@@ -113,12 +194,17 @@
       news.forEach(item => {
         const row = document.createElement('tr');
         row.innerHTML = `
-          <td>${item.title}</td>
-          <td>${item.category}</td>
-          <td>${item.source}</td>
-          <td>${item.time}</td>
-          <td><button onclick="deleteNews('${item.id}')">删除</button></td>
+          <td>${escapeHtml(item.title)}</td>
+          <td>${escapeHtml(item.category)}</td>
+          <td>${escapeHtml(item.source)}</td>
+          <td>${escapeHtml(item.time)}</td>
+          <td></td>
         `;
+        const btn = document.createElement('button');
+        btn.className = 'btn-danger';
+        btn.textContent = '删除';
+        btn.addEventListener('click', () => deleteNews(item.id));
+        row.lastElementChild.appendChild(btn);
         newsTbody.appendChild(row);
       });
     }
@@ -134,6 +220,11 @@
         alert(data.error || '删除失败');
       }
     }
+
+    // 每 60 秒刷新一次用户状态，让“在线/离线”保持实时
+    setInterval(() => {
+      if (!document.getElementById('dataSection').classList.contains('hidden')) loadData();
+    }, 60 * 1000);
   </script>
 </body>
 </html>

@@ -816,7 +816,7 @@
 
         // ========== 状态 ==========
         let newsData = [];
-        let currentUser = { name: '', isLoggedIn: false, isAdmin: false, password: '' };
+        let currentUser = { name: '', loggedIn: false, isAdmin: false, password: '' };
         let currentSearch = '';
         let isDarkTheme = false;
         let currentOpenedNewsId = null;
@@ -922,12 +922,27 @@
         }
 
         // ========== 本地用户管理 ==========
+        // 说明：loggedIn 只表示“本机浏览器是否处于登录态”，与后端记录的真实活跃时间无关
+        function emptyUser() {
+            return { name: '', loggedIn: false, isAdmin: false, password: '' };
+        }
         function saveLocalUser(user) {
             localStorage.setItem('dxwb_local_user', JSON.stringify(user));
         }
         function loadLocalUser() {
             const stored = localStorage.getItem('dxwb_local_user');
-            return stored ? JSON.parse(stored) : { name: '', isLoggedIn: false, isAdmin: false, password: '' };
+            if (!stored) return emptyUser();
+            try {
+                const u = JSON.parse(stored);
+                // 兼容旧版本存的 isLoggedIn 字段
+                if (u.isLoggedIn !== undefined) {
+                    u.loggedIn = !!u.isLoggedIn;
+                    delete u.isLoggedIn;
+                }
+                return { ...emptyUser(), ...u };
+            } catch (e) {
+                return emptyUser();
+            }
         }
         function clearLocalUser() {
             localStorage.removeItem('dxwb_local_user');
@@ -938,7 +953,7 @@
         // 否则浏览器 fetch 会直接抛出 TypeError，导致发布/删除静默失败
         function getAuthHeaders() {
             const headers = { 'Content-Type': 'application/json' };
-            if (currentUser.isLoggedIn && currentUser.name && currentUser.password) {
+            if (currentUser.loggedIn && currentUser.name && currentUser.password) {
                 headers['x-user-name'] = encodeURIComponent(currentUser.name);
                 headers['x-auth-token'] = currentUser.password;
             }
@@ -990,7 +1005,7 @@
             const res = await fetch(API_BASE + '/user', {
                 method: 'POST',
                 headers: getAuthHeaders(),
-                body: JSON.stringify({ name: newName, oldName, isLoggedIn: true, isAdmin })
+                body: JSON.stringify({ name: newName, oldName, isAdmin })
             });
             return await res.json();
         }
@@ -1004,6 +1019,22 @@
             return await res.json();
         }
 
+        // 上报活跃：让管理后台看到真实的“在线/最后活跃”
+        async function sendHeartbeat() {
+            if (!currentUser.loggedIn || !currentUser.name || !currentUser.password) return;
+            try {
+                await fetch(API_BASE + '/user/heartbeat', { method: 'POST', headers: getAuthHeaders() });
+            } catch (e) {}
+        }
+
+        // 退出登录时通知后端清掉活跃时间
+        async function sendLogout() {
+            if (!currentUser.name || !currentUser.password) return;
+            try {
+                await fetch(API_BASE + '/user/logout', { method: 'POST', headers: getAuthHeaders() });
+            } catch (e) {}
+        }
+
         // 管理员提权：需把管理员密码带给后端校验，后端才允许写入 isAdmin
         async function verifyAdminPassword(name, adminPassword) {
             const headers = getAuthHeaders();
@@ -1011,14 +1042,14 @@
             const res = await fetch(API_BASE + '/user', {
                 method: 'POST',
                 headers: headers,
-                body: JSON.stringify({ name, oldName: name, isLoggedIn: true, isAdmin: true })
+                body: JSON.stringify({ name, oldName: name, isAdmin: true })
             });
             return await res.json();
         }
 
         // ========== 用户界面 ==========
         function updateUserUI() {
-            if (currentUser.isLoggedIn) {
+            if (currentUser.loggedIn) {
                 userNameDisplay.textContent = currentUser.name || '同学';
                 userAvatar.textContent = (currentUser.name || '同').charAt(0).toUpperCase();
                 adminBadge.style.display = currentUser.isAdmin ? 'inline-block' : 'none';
@@ -1030,7 +1061,7 @@
         }
 
         function openUserModal() {
-            if (currentUser.isLoggedIn) {
+            if (currentUser.loggedIn) {
                 const adminStatus = currentUser.isAdmin ? '（管理员）' : '';
                 let adminButton = '';
                 if (!currentUser.isAdmin) {
@@ -1130,13 +1161,14 @@
             if (result.success) {
                 currentUser = {
                     name: result.user.name,
-                    isLoggedIn: true,
+                    loggedIn: true,
                     isAdmin: result.user.isAdmin || false,
                     password: password
                 };
                 saveLocalUser(currentUser);
                 updateUserUI();
                 closeUserModal();
+                sendHeartbeat();
             } else {
                 errorMsg.textContent = result.error || '登录失败';
                 errorMsg.style.display = 'block';
@@ -1182,8 +1214,10 @@
             }
         }
 
-        function logout() {
-            currentUser = { name: '', isLoggedIn: false, isAdmin: false, password: '' };
+        async function logout() {
+            // 先通知后端清掉活跃时间（失败也不影响本地退出）
+            await sendLogout();
+            currentUser = emptyUser();
             clearLocalUser();
             updateUserUI();
             closeUserModal();
@@ -1191,7 +1225,7 @@
 
         // ========== 发布新闻 ==========
         function openNewsUploadModal() {
-            if (!currentUser.isLoggedIn) {
+            if (!currentUser.loggedIn) {
                 alert('请先登录后再发布新闻');
                 openUserModal();
                 return;
@@ -1455,6 +1489,15 @@
 
             window.addEventListener('scroll', () => {
                 backToTop.classList.toggle('visible', window.scrollY > 400);
+            });
+
+            // 定时上报活跃（每 5 分钟一次），管理后台据此显示真实在线状态
+            sendHeartbeat();
+            setInterval(sendHeartbeat, 5 * 60 * 1000);
+
+            // 页面重新可见时补一次心跳（覆盖“挂机后回来”的场景）
+            document.addEventListener('visibilitychange', () => {
+                if (!document.hidden) sendHeartbeat();
             });
         }
 
