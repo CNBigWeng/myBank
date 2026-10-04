@@ -116,7 +116,9 @@ export async function onRequest(context) {
       }
 
       // 与实际用户数据对账：补齐缺失的、剔除不存在的，保证索引可靠
-      const list = await env.USER_DATA.list();
+      // 注意：KV 的 list() 有最终一致性（默认结果会被缓存约 60 秒），
+      // 这里用 cacheTtl: 0 取最新结果，缩小"刚注册用户暂时不在列表里"的窗口
+      const list = await env.USER_DATA.list({ cacheTtl: 0 });
       const existingNames = new Map();
       for (const key of list.keys) {
         if (key.name === USER_INDEX_KEY) continue;
