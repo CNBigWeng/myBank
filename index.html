@@ -934,10 +934,12 @@
         }
 
         // ========== 带身份验证的请求头 ==========
+        // 注意：HTTP 头只能放 ISO-8859-1 字符，中文用户名必须 encodeURIComponent，
+        // 否则浏览器 fetch 会直接抛出 TypeError，导致发布/删除静默失败
         function getAuthHeaders() {
             const headers = { 'Content-Type': 'application/json' };
             if (currentUser.isLoggedIn && currentUser.name && currentUser.password) {
-                headers['x-user-name'] = currentUser.name;
+                headers['x-user-name'] = encodeURIComponent(currentUser.name);
                 headers['x-auth-token'] = currentUser.password;
             }
             return headers;
@@ -949,34 +951,29 @@
                 const res = await fetch(API_BASE + '/news');
                 if (res.ok) return await res.json();
             } catch (e) {}
-            const stored = localStorage.getItem('dxwb_news_data');
-            return stored ? JSON.parse(stored) : [];
+            return [];
         }
 
         async function addNewsToCloud(newsItem) {
-            try {
-                const res = await fetch(API_BASE + '/news', {
-                    method: 'POST',
-                    headers: getAuthHeaders(),
-                    body: JSON.stringify(newsItem)
-                });
-                if (!res.ok) throw new Error('保存失败');
-            } catch (e) {
-                console.warn('API 保存失败，使用 localStorage', e);
-                localStorage.setItem('dxwb_news_data', JSON.stringify(newsData));
+            const res = await fetch(API_BASE + '/news', {
+                method: 'POST',
+                headers: getAuthHeaders(),
+                body: JSON.stringify(newsItem)
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || '保存失败');
             }
         }
 
         async function deleteNewsFromCloud(id) {
-            try {
-                const res = await fetch(API_BASE + '/news/' + id, {
-                    method: 'DELETE',
-                    headers: getAuthHeaders()
-                });
-                if (!res.ok) throw new Error('删除失败');
-            } catch (e) {
-                console.warn('API 删除失败，使用 localStorage', e);
-                localStorage.setItem('dxwb_news_data', JSON.stringify(newsData));
+            const res = await fetch(API_BASE + '/news/' + id, {
+                method: 'DELETE',
+                headers: getAuthHeaders()
+            });
+            if (!res.ok) {
+                const data = await res.json().catch(() => ({}));
+                throw new Error(data.error || '删除失败');
             }
         }
 
@@ -1003,6 +1000,18 @@
                 method: 'POST',
                 headers: getAuthHeaders(),
                 body: JSON.stringify({ name, oldPassword, newPassword })
+            });
+            return await res.json();
+        }
+
+        // 管理员提权：需把管理员密码带给后端校验，后端才允许写入 isAdmin
+        async function verifyAdminPassword(name, adminPassword) {
+            const headers = getAuthHeaders();
+            headers['x-admin-password'] = adminPassword;
+            const res = await fetch(API_BASE + '/user', {
+                method: 'POST',
+                headers: headers,
+                body: JSON.stringify({ name, oldName: name, isLoggedIn: true, isAdmin: true })
             });
             return await res.json();
         }
@@ -1137,15 +1146,19 @@
         async function verifyAdmin() {
             const adminPassword = prompt('请输入管理员密码：');
             if (adminPassword === null) return;
-            if (adminPassword.trim() === ADMIN_PASSWORD) {
+            if (adminPassword.trim() !== ADMIN_PASSWORD) {
+                alert('管理员密码错误');
+                return;
+            }
+            const result = await verifyAdminPassword(currentUser.name, adminPassword.trim());
+            if (result.success) {
                 currentUser.isAdmin = true;
                 saveLocalUser(currentUser);
-                await updateUserName(currentUser.name, currentUser.name, true);
                 updateUserUI();
                 alert('管理员验证成功！');
                 openUserModal();
             } else {
-                alert('管理员密码错误');
+                alert(result.error || '管理员验证失败');
             }
         }
 
@@ -1258,8 +1271,17 @@
                     localStorage.setItem('dxwb_last_publish_time', Date.now().toString());
                 }
 
-                // 后台异步保存
-                await addNewsToCloud(newNews);
+                // 同步到云端；失败则回滚本地显示并明确提示，避免"看着成功其实没存上"
+                try {
+                    await addNewsToCloud(newNews);
+                } catch (err) {
+                    newsData = newsData.filter(item => item.id !== newNews.id);
+                    renderNews();
+                    if (!currentUser.isAdmin) {
+                        localStorage.removeItem('dxwb_last_publish_time');
+                    }
+                    alert('发布失败：' + (err.message || '网络异常') + '\n请稍后重试。');
+                }
             } finally {
                 isSubmitting = false;
             }
@@ -1342,11 +1364,19 @@
                 return;
             }
             if (!currentOpenedNewsId) return;
+            const deletingId = currentOpenedNewsId;
             if (confirm('确定要删除这条新闻吗？此操作不可恢复。')) {
-                newsData = newsData.filter(item => item.id !== currentOpenedNewsId);
+                const backup = newsData.slice();
+                newsData = newsData.filter(item => item.id !== deletingId);
                 renderNews();
                 closeModal();
-                await deleteNewsFromCloud(currentOpenedNewsId);
+                try {
+                    await deleteNewsFromCloud(deletingId);
+                } catch (err) {
+                    newsData = backup;
+                    renderNews();
+                    alert('删除失败：' + (err.message || '网络异常'));
+                }
             }
         }
 

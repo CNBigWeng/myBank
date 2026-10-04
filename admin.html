@@ -2,6 +2,7 @@
 <html>
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>管理后台 - 笃行五班新闻站</title>
   <style>
     body { font-family: sans-serif; max-width: 900px; margin: 40px auto; padding: 0 20px; }
@@ -12,6 +13,7 @@
     input[type="password"] { padding: 8px; width: 250px; }
     button { padding: 8px 16px; background: #2d5a27; color: white; border: none; cursor: pointer; margin-right: 5px; }
     .section { margin-top: 40px; }
+    .error-msg { color: #c0392b; font-size: 13px; margin-top: 8px; display: none; }
   </style>
 </head>
 <body>
@@ -19,6 +21,7 @@
   <div id="loginSection">
     <input type="password" id="adminPassword" placeholder="管理员密码">
     <button onclick="login()">登录</button>
+    <div class="error-msg" id="loginError"></div>
   </div>
   <div id="dataSection" class="hidden">
     <h2>用户列表</h2>
@@ -40,21 +43,54 @@
     </div>
   </div>
   <script>
-    const ADMIN_PASSWORD = '114514ab';
-    async function login() {
-      const pwd = document.getElementById('adminPassword').value;
-      if (pwd === ADMIN_PASSWORD) {
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('dataSection').classList.remove('hidden');
-        await loadData();
-      } else {
-        alert('密码错误');
-      }
+    // 管理员密码仅用于换取后端接口权限，实际校验由后端完成
+    let adminPassword = '';
+
+    function authHeaders() {
+      const headers = { 'Content-Type': 'application/json' };
+      if (adminPassword) headers['x-admin-password'] = adminPassword;
+      return headers;
     }
-    async function loadData() {
-      // 加载用户列表
-      const usersRes = await fetch('/api/users');
-      const users = await usersRes.json();
+
+    function showLoginError(message) {
+      const box = document.getElementById('loginError');
+      box.textContent = message;
+      box.style.display = message ? 'block' : 'none';
+    }
+
+    async function login() {
+      const pwd = document.getElementById('adminPassword').value.trim();
+      if (!pwd) {
+        showLoginError('请输入管理员密码');
+        return;
+      }
+
+      adminPassword = pwd;
+      // 用 /api/users 做一次真实鉴权，密码错误会返回 403
+      let users;
+      try {
+        const res = await fetch('/api/users', { headers: authHeaders() });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          showLoginError(data.error || '管理员密码错误');
+          adminPassword = '';
+          return;
+        }
+        users = await res.json();
+      } catch (e) {
+        showLoginError('网络请求失败：' + e.message);
+        adminPassword = '';
+        return;
+      }
+
+      showLoginError('');
+      document.getElementById('loginSection').classList.add('hidden');
+      document.getElementById('dataSection').classList.remove('hidden');
+      renderUsers(users);
+      await loadNews();
+    }
+
+    function renderUsers(users) {
       const usersTbody = document.querySelector('#usersTable tbody');
       usersTbody.innerHTML = '';
       users.forEach(user => {
@@ -67,8 +103,9 @@
         `;
         usersTbody.appendChild(row);
       });
+    }
 
-      // 加载新闻
+    async function loadNews() {
       const newsRes = await fetch('/api/news');
       const news = await newsRes.json();
       const newsTbody = document.querySelector('#newsTable tbody');
@@ -85,10 +122,16 @@
         newsTbody.appendChild(row);
       });
     }
+
+    // 删除新闻：携带管理员密码调用，后端校验通过后删除
     async function deleteNews(id) {
-      if (confirm('确定删除？')) {
-        await fetch(`/api/news/${id}`, { method: 'DELETE' });
-        await loadData();
+      if (!confirm('确定删除这条新闻吗？此操作不可恢复。')) return;
+      const res = await fetch(`/api/news/${id}`, { method: 'DELETE', headers: authHeaders() });
+      if (res.ok) {
+        await loadNews();
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || '删除失败');
       }
     }
   </script>
